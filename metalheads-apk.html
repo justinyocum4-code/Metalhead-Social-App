@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Metalhead Social</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --gold:#f5b301; --gold-dim:#8a6a00; --black:#0a0a0a; --panel:#141414; --panel2:#1d1d1d; --text:#f2f2f2; --muted:#b8b8b8; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; background:var(--black); color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; font-size:18px; line-height:1.5; }
+  header { position:sticky; top:0; z-index:10; background:#000; border-bottom:2px solid var(--gold); padding:12px 16px; display:flex; align-items:center; justify-content:space-between; }
+  header h1 { margin:0; font-size:22px; color:var(--gold); letter-spacing:1px; }
+  header h1 small { font-size:13px; color:var(--muted); letter-spacing:0; }
+  .icon-btn { background:var(--panel2); color:var(--gold); border:2px solid var(--gold); border-radius:12px; font-size:16px; padding:10px 14px; min-height:48px; }
+  .icon-btn[aria-pressed="true"] { background:var(--gold); color:#000; }
+  main { padding:16px 16px 110px; max-width:720px; margin:0 auto; }
+  .tabs { position:fixed; bottom:0; left:0; right:0; display:flex; background:#000; border-top:2px solid var(--gold); z-index:10; }
+  .tabs button { flex:1; background:none; border:none; color:var(--muted); font-size:15px; font-weight:bold; padding:14px 0; min-height:64px; }
+  .tabs button[aria-selected="true"] { color:var(--gold); border-top:4px solid var(--gold); }
+  .card { background:var(--panel); border:1px solid #333; border-radius:14px; padding:16px; margin-bottom:14px; }
+  .who { color:var(--gold); font-weight:bold; font-size:17px; }
+  .who-btn { background:none; border:none; color:var(--gold); font-weight:bold; font-size:17px; padding:8px 4px; min-height:48px; text-align:left; }
+  .when { color:var(--muted); font-size:14px; margin-left:8px; }
+  .content { margin:10px 0 12px; font-size:19px; word-wrap:break-word; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .btn { background:var(--gold); color:#000; border:none; border-radius:12px; font-size:18px; font-weight:bold; padding:14px 20px; min-height:56px; }
+  .btn.secondary { background:var(--panel2); color:var(--gold); border:2px solid var(--gold); }
+  .btn.small { font-size:16px; padding:10px 14px; min-height:48px; }
+  .btn:disabled { opacity:.45; }
+  .ghost-btn { background:none; border:none; color:var(--gold); font-size:16px; padding:12px; min-height:48px; text-decoration:underline; }
+  label { display:block; margin:14px 0 6px; font-weight:bold; color:var(--gold); }
+  input, textarea { width:100%; background:#000; color:var(--text); border:2px solid var(--gold-dim); border-radius:12px; font-size:18px; padding:14px; }
+  input:focus, textarea:focus { border-color:var(--gold); outline:none; }
+  textarea { min-height:120px; resize:vertical; }
+  input[type="file"] { padding:10px; }
+  input[type="date"] { color-scheme:dark; }
+  .count { color:var(--muted); font-size:14px; text-align:right; }
+  .error { background:#3a0a0a; border:2px solid #ff5555; color:#ffb3b3; border-radius:12px; padding:12px; margin:12px 0; }
+  .ok { background:#0a3a1a; border:2px solid #55ff88; color:#b3ffcc; border-radius:12px; padding:12px; margin:12px 0; }
+  .empty { text-align:center; color:var(--muted); padding:40px 20px; }
+  .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+  .liked { background:var(--gold) !important; color:#000 !important; }
+  h2 { color:var(--gold); }
+  .reply { border-left:3px solid var(--gold-dim); padding-left:12px; margin:12px 0; }
+  .back-link { margin-bottom:12px; }
+  .postimg { max-width:100%; border-radius:12px; margin:8px 0; display:block; }
+  audio { width:100%; margin:8px 0; }
+  .pollbar { background:#000; border:1px solid var(--gold-dim); border-radius:10px; margin:8px 0; overflow:hidden; }
+  .pollfill { background:var(--gold); color:#000; font-weight:bold; font-size:15px; padding:8px 12px; white-space:nowrap; overflow:hidden; min-width:fit-content; }
+  .bubble { border-radius:14px; padding:12px 16px; margin:8px 0; max-width:85%; word-wrap:break-word; }
+  .bubble.me { background:var(--gold); color:#000; margin-left:auto; }
+  .bubble.them { background:var(--panel2); border:1px solid var(--gold-dim); }
+  .bubble .when { color:inherit; opacity:.7; margin-left:0; display:block; font-size:13px; }
+  .chatrow { display:flex; align-items:center; gap:12px; width:100%; background:var(--panel); border:1px solid #333; border-radius:14px; padding:14px 16px; margin-bottom:10px; color:var(--text); font-size:18px; text-align:left; min-height:64px; }
+  .chatrow .preview { color:var(--muted); font-size:15px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:60vw; }
+  .sectionhead { color:var(--gold); font-size:19px; font-weight:bold; margin:20px 0 10px; }
+  .attach-status { color:var(--muted); font-size:15px; margin:8px 0; }
+  .recording { background:#5a0000 !important; border-color:#ff5555 !important; color:#fff !important; }
+</style>
+</head>
+<body id="metalheads-app">
+<header>
+  <h1>🤘 Metalheads <small>v1.1</small></h1>
+  <button class="icon-btn" id="voiceBtn" aria-pressed="false" aria-label="Voice announcements off">🔇 Voice</button>
+</header>
+<main>
+  <div id="status" class="sr" role="status" aria-live="polite"></div>
+
+  <!-- AUTH -->
+  <section id="authView" hidden>
+    <h2>Welcome to the clubhouse</h2>
+    <p>Sign in or create your account. This is your private metal community.</p>
+    <div id="authError" class="error" hidden></div>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="email" inputmode="email">
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password">
+    <div class="row" style="margin-top:16px">
+      <button class="btn" id="signInBtn">Sign in</button>
+      <button class="btn secondary" id="signUpBtn">Create account</button>
+    </div>
+  </section>
+
+  <!-- PROFILE SETUP -->
+  <section id="setupView" hidden>
+    <h2>Pick your metal name</h2>
+    <div id="setupError" class="error" hidden></div>
+    <label for="username">Username</label>
+    <input id="username" maxlength="30" placeholder="e.g. ThrashFan88">
+    <label for="bands">Favorite bands (optional)</label>
+    <input id="bands" maxlength="200" placeholder="e.g. Metallica, Slayer, Pantera">
+    <div class="row" style="margin-top:16px">
+      <button class="btn" id="saveProfileBtn">Join the pit</button>
+    </div>
+  </section>
+
+  <!-- FEED -->
+  <section id="feedView" hidden>
+    <div id="feedList"></div>
+  </section>
+
+  <!-- NEW POST -->
+  <section id="postView" hidden>
+    <h2>What's spinning?</h2>
+    <div id="postError" class="error" hidden></div>
+    <label for="postText">Your post</label>
+    <textarea id="postText" maxlength="500" placeholder="New album, show review, unpopular opinion..."></textarea>
+    <div class="count"><span id="charCount">0</span>/500</div>
+    <label for="photoInput">Attach a photo (optional)</label>
+    <input id="photoInput" type="file" accept="image/*" aria-label="Attach a photo to your post">
+    <div class="row" style="margin-top:12px">
+      <button class="btn secondary" id="recBtn" aria-pressed="false">🎤 Record voice post</button>
+    </div>
+    <div id="attachStatus" class="attach-status" role="status"></div>
+    <button class="btn" id="sendPostBtn" style="width:100%;margin-top:8px">Post it 🤘</button>
+  </section>
+
+  <!-- REPLIES -->
+  <section id="threadView" hidden>
+    <div class="back-link"><button class="ghost-btn" id="backBtn">← Back to feed</button></div>
+    <div id="threadPost"></div>
+    <h2>Replies</h2>
+    <div id="replyList"></div>
+    <label for="replyText">Reply</label>
+    <textarea id="replyText" maxlength="500" placeholder="Say something..."></textarea>
+    <button class="btn" id="sendReplyBtn" style="width:100%;margin-top:8px">Reply</button>
+  </section>
+
+  <!-- MEMBER PROFILE -->
+  <section id="memberView" hidden>
+    <div class="back-link"><button class="ghost-btn" id="memberBackBtn">← Back</button></div>
+    <div id="memberCard"></div>
+    <h2>Their posts</h2>
+    <div id="memberPosts"></div>
+  </section>
+
+  <!-- SHOW BOARD -->
+  <section id="showsView" hidden>
+    <h2>Show board</h2>
+    <button class="btn secondary" id="addShowToggle" style="width:100%">＋ Post a show</button>
+    <div id="showForm" hidden>
+      <div id="showError" class="error" hidden></div>
+      <label for="showTitle">Band / event name</label>
+      <input id="showTitle" maxlength="120" placeholder="e.g. Slayer farewell tour">
+      <label for="showVenue">Venue</label>
+      <input id="showVenue" maxlength="120" placeholder="e.g. Dos Equis Pavilion">
+      <label for="showCity">City</label>
+      <input id="showCity" maxlength="120" placeholder="e.g. Dallas, TX">
+      <label for="showDate">Date</label>
+      <input id="showDate" type="date">
+      <label for="showDetails">Details (optional)</label>
+      <textarea id="showDetails" maxlength="500" placeholder="Ticket info, doors time..."></textarea>
+      <button class="btn" id="sendShowBtn" style="width:100%;margin-top:12px">Post show</button>
+    </div>
+    <div id="showList" style="margin-top:12px"></div>
+  </section>
+
+  <!-- POLLS -->
+  <section id="pollsView" hidden>
+    <h2>Polls</h2>
+    <button class="btn secondary" id="addPollToggle" style="width:100%">＋ New poll</button>
+    <div id="pollForm" hidden>
+      <div id="pollError" class="error" hidden></div>
+      <label for="pollQ">Question</label>
+      <input id="pollQ" maxlength="200" placeholder="e.g. Best Metallica album?">
+      <label for="pollOpts">Options (one per line, 2 to 6)</label>
+      <textarea id="pollOpts" maxlength="400" placeholder="Master of Puppets&#10;Ride the Lightning&#10;...And Justice for All"></textarea>
+      <button class="btn" id="sendPollBtn" style="width:100%;margin-top:12px">Post poll</button>
+    </div>
+    <div id="pollList" style="margin-top:12px"></div>
+  </section>
+
+  <!-- MESSAGES: conversation list -->
+  <section id="chatsView" hidden>
+    <h2>Messages</h2>
+    <button class="btn secondary" id="newChatBtn" style="width:100%">＋ New message</button>
+    <div id="chatList" style="margin-top:12px"></div>
+  </section>
+
+  <!-- MESSAGES: pick a member -->
+  <section id="pickMemberView" hidden>
+    <div class="back-link"><button class="ghost-btn" id="pickBackBtn">← Back to messages</button></div>
+    <h2>Message a metalhead</h2>
+    <div id="pickList"></div>
+  </section>
+
+  <!-- MESSAGES: thread -->
+  <section id="chatView" hidden>
+    <div class="back-link"><button class="ghost-btn" id="chatBackBtn">← Back to messages</button></div>
+    <h2 id="chatTitle">Chat</h2>
+    <div id="chatMessages"></div>
+    <label for="chatText">Message</label>
+    <textarea id="chatText" maxlength="1000" placeholder="Say something..."></textarea>
+    <button class="btn" id="sendChatBtn" style="width:100%;margin-top:8px">Send</button>
+  </section>
+
+  <!-- SEARCH -->
+  <section id="searchView" hidden>
+    <h2>Search</h2>
+    <label for="searchInput">Search posts and members</label>
+    <input id="searchInput" maxlength="80" placeholder="e.g. Maiden, thrash...">
+    <button class="btn" id="searchBtn" style="width:100%;margin-top:12px">Search</button>
+    <div id="searchResults"></div>
+  </section>
+
+  <!-- PROFILE -->
+  <section id="profileView" hidden>
+    <h2>Your profile</h2>
+    <p style="color:var(--muted)">Metalhead Social v1.1</p>
+    <div id="profileMsg" class="ok" hidden></div>
+    <label for="editBands">Favorite bands</label>
+    <input id="editBands" maxlength="200">
+    <div class="row" style="margin-top:16px">
+      <button class="btn" id="saveBandsBtn">Save</button>
+      <button class="btn secondary" id="signOutBtn">Sign out</button>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs" id="tabs" hidden aria-label="Main">
+  <button id="tabFeed" aria-selected="true">Feed</button>
+  <button id="tabShows" aria-selected="false">Shows</button>
+  <button id="tabPolls" aria-selected="false">Polls</button>
+  <button id="tabChats" aria-selected="false">Chats</button>
+  <button id="tabSearch" aria-selected="false">Search</button>
+  <button id="tabPost" aria-selected="false">Post</button>
+  <button id="tabProfile" aria-selected="false">Profile</button>
+</nav>
+
+<script>
+"use strict";
+var SUPABASE_URL = "https://klykzghndlrfwwxwaczm.supabase.co";
+var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseWt6Z2huZGxyZnd3eHdhY3ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1MzUxNDUsImV4cCI6MjEwNTExMTE0NX0.02AcmkbA_wjLN5XOfwuisJjck2TijjqH66bX5ddVV0Q";
+var sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+var $ = function(id){ return document.getElementById(id); };
+var state = { user:null, profile:null, profiles:{}, myLikes:{}, threadPostId:null, voice:false,
+  memberId:null, memberReturn:"feedView", chatPartner:null, myVotes:{}, myRsvps:{},
+  pendingImageUrl:null, pendingAudioUrl:null, recording:false, mediaRecorder:null, audioChunks:[] };
+var VIEWS = ["authView","setupView","feedView","postView","threadView","memberView","showsView","pollsView","chatsView","pickMemberView","chatView","searchView","profileView"];
+var TABVIEWS = ["feedView","postView","showsView","pollsView","chatsView","searchView","profileView"];
+
+try { state.voice = localStorage.getItem("mhVoice") === "1"; } catch(e){}
+function syncVoiceBtn(){
+  var b = $("voiceBtn");
+  b.setAttribute("aria-pressed", state.voice ? "true" : "false");
+  b.textContent = state.voice ? "🔊 Voice" : "🔇 Voice";
+  b.setAttribute("aria-label", state.voice ? "Voice announcements on" : "Voice announcements off");
+}
+function say(text){
+  announce(text);
+  if(!state.voice) return;
+  try{
+    if(window.LynxosTts && LynxosTts.speak){ LynxosTts.speak(String(text)); return; }
+    if("speechSynthesis" in window){ speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(String(text))); }
+  }catch(e){}
+}
+function announce(text){ $("status").textContent = ""; setTimeout(function(){ $("status").textContent = text; }, 50); }
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function ago(ts){
+  var s = Math.floor((Date.now() - new Date(ts).getTime())/1000);
+  if(s < 60) return "just now";
+  var m = Math.floor(s/60); if(m < 60) return m + "m ago";
+  var h = Math.floor(m/60); if(h < 24) return h + "h ago";
+  var d = Math.floor(h/24); if(d < 7) return d + "d ago";
+  return new Date(ts).toLocaleDateString();
+}
+function fmtDate(ds){
+  if(!ds) return "date TBA";
+  var d = new Date(ds + "T12:00:00");
+  return isNaN(d.getTime()) ? ds : d.toLocaleDateString(undefined, {weekday:"short", month:"short", day:"numeric", year:"numeric"});
+}
+function show(id){
+  VIEWS.forEach(function(v){ $(v).hidden = v !== id; });
+  $("tabs").hidden = TABVIEWS.indexOf(id) === -1;
+}
+function selectTab(name){
+  [["tabFeed","feedView"],["tabShows","showsView"],["tabPolls","pollsView"],["tabChats","chatsView"],["tabSearch","searchView"],["tabPost","postView"],["tabProfile","profileView"]].forEach(function(p){
+    $(p[0]).setAttribute("aria-selected", p[1] === name ? "true" : "false");
+  });
+  show(name);
+}
+function showError(box, msg){ var e = $(box); e.hidden = false; e.textContent = msg; say(msg); }
+function mediaHtml(p){
+  var h = "";
+  if(p.image_url) h += '<img class="postimg" src="' + esc(p.image_url) + '" alt="Photo attached to this post">';
+  if(p.audio_url) h += '<audio controls preload="none" src="' + esc(p.audio_url) + '" aria-label="Voice post audio"></audio>';
+  return h;
+}
+function memberBtn(userId, name){
+  return '<button class="who-btn" data-member="' + esc(userId) + '" aria-label="View profile of ' + esc(name) + '">' + esc(name) + "</button>";
+}
+function bindMemberButtons(root){
+  (root || document).querySelectorAll("[data-member]").forEach(function(b){
+    b.addEventListener("click", function(){ openMember(b.getAttribute("data-member")); });
+  });
+}
+
+/* ---------- auth ---------- */
+$("signUpBtn").addEventListener("click", function(){
+  var email = $("email").value.trim(), pw = $("password").value;
+  if(!email || !pw){ showError("authError", "Enter an email and a password first."); return; }
+  $("authError").hidden = true;
+  sb.auth.signUp({ email: email, password: pw }).then(function(res){
+    if(res.error){ showError("authError", res.error.message); return; }
+    if(!res.data.session){ showError("authError", "Account created! Check your email to confirm, then sign in."); return; }
+    say("Account created. Pick your metal name.");
+    boot();
+  });
+});
+$("signInBtn").addEventListener("click", function(){
+  var email = $("email").value.trim(), pw = $("password").value;
+  if(!email || !pw){ showError("authError", "Enter an email and a password first."); return; }
+  $("authError").hidden = true;
+  sb.auth.signInWithPassword({ email: email, password: pw }).then(function(res){
+    if(res.error){ showError("authError", res.error.message); return; }
+    say("Signed in.");
+    boot();
+  });
+});
+$("signOutBtn").addEventListener("click", function(){
+  sb.auth.signOut().then(function(){ location.reload(); });
+});
+$("voiceBtn").addEventListener("click", function(){
+  state.voice = !state.voice;
+  try{ localStorage.setItem("mhVoice", state.voice ? "1" : "0"); }catch(e){}
+  syncVoiceBtn();
+  say(state.voice ? "Voice announcements on." : "Voice announcements off.");
+});
+
+/* ---------- profile setup ---------- */
+$("saveProfileBtn").addEventListener("click", function(){
+  var name = $("username").value.trim();
+  if(!name){ showError("setupError", "Pick a username first."); return; }
+  $("setupError").hidden = true;
+  sb.from("profiles").upsert({ id: state.user.id, username: name, favorite_bands: $("bands").value.trim() })
+    .then(function(res){
+      if(res.error){ showError("setupError", res.error.message); return; }
+      say("Welcome to the pit, " + name + ".");
+      boot();
+    });
+});
+$("saveBandsBtn").addEventListener("click", function(){
+  sb.from("profiles").update({ favorite_bands: $("editBands").value.trim() }).eq("id", state.user.id)
+    .then(function(res){
+      var m = $("profileMsg");
+      if(res.error){ m.hidden = false; m.textContent = res.error.message; return; }
+      m.hidden = false; m.textContent = "Saved.";
+      say("Profile saved.");
+    });
+});
+
+/* ---------- feed ---------- */
+function loadProfiles(ids){
+  if(!ids.length) return Promise.resolve();
+  var missing = ids.filter(function(id){ return !state.profiles[id]; });
+  if(!missing.length) return Promise.resolve();
+  return sb.from("profiles").select("id,username").in("id", missing).then(function(res){
+    if(!res.error) res.data.forEach(function(p){ state.profiles[p.id] = p.username; });
+  });
+}
+function postCard(p, name, likeCount, replyCount){
+  var card = document.createElement("article");
+  card.className = "card";
+  card.innerHTML =
+    '<div>' + memberBtn(p.user_id, name) + '<span class="when">' + esc(ago(p.created_at)) + "</span></div>" +
+    '<p class="content">' + esc(p.content) + "</p>" + mediaHtml(p) +
+    '<div class="row">' +
+      '<button class="btn small secondary' + (state.myLikes[p.id] ? " liked" : "") + '" data-like="' + p.id + '" aria-label="Like this post, ' + (likeCount||0) + ' likes">🤘 ' + (likeCount || 0) + "</button>" +
+      '<button class="btn small secondary" data-thread="' + p.id + '" aria-label="Replies, ' + (replyCount||0) + ' replies">💬 ' + (replyCount || 0) + "</button>" +
+    "</div>";
+  return card;
+}
+function loadFeed(){
+  var list = $("feedList");
+  list.innerHTML = '<div class="empty">Loading the pit...</div>';
+  sb.from("posts").select("id,content,image_url,audio_url,created_at,user_id").order("created_at", {ascending:false}).limit(30)
+    .then(function(res){
+      if(res.error){ list.innerHTML = '<div class="error">' + esc(res.error.message) + "</div>"; return; }
+      var posts = res.data;
+      if(!posts.length){ list.innerHTML = '<div class="empty">Nothing here yet. Be the first to post. 🤘</div>'; return; }
+      var ids = posts.map(function(p){ return p.user_id; });
+      var pids = posts.map(function(p){ return p.id; });
+      Promise.all([
+        loadProfiles(ids),
+        sb.from("likes").select("post_id,user_id").in("post_id", pids),
+        sb.from("replies").select("post_id").in("post_id", pids)
+      ]).then(function(r){
+        var likes = r[0].data || [];
+        var replies = r[1].data || [];
+        var likeCount = {}, replyCount = {};
+        state.myLikes = {};
+        likes.forEach(function(l){
+          likeCount[l.post_id] = (likeCount[l.post_id] || 0) + 1;
+          if(l.user_id === state.user.id) state.myLikes[l.post_id] = true;
+        });
+        replies.forEach(function(rp){ replyCount[rp.post_id] = (replyCount[rp.post_id] || 0) + 1; });
+        list.innerHTML = "";
+        posts.forEach(function(p){
+          list.appendChild(postCard(p, state.profiles[p.user_id] || "metalhead", likeCount[p.id] || 0, replyCount[p.id] || 0));
+        });
+        bindFeedButtons();
+        bindMemberButtons(list);
+      });
+    });
+}
+function bindFeedButtons(){
+  document.querySelectorAll("[data-like]").forEach(function(b){
+    b.addEventListener("click", function(){ toggleLike(b.getAttribute("data-like")); });
+  });
+  document.querySelectorAll("[data-thread]").forEach(function(b){
+    b.addEventListener("click", function(){ openThread(b.getAttribute("data-thread")); });
+  });
+}
+function toggleLike(postId){
+  var liked = !!state.myLikes[postId];
+  var q = liked
+    ? sb.from("likes").delete().eq("post_id", postId).eq("user_id", state.user.id)
+    : sb.from("likes").insert({ post_id: postId, user_id: state.user.id });
+  q.then(function(res){
+    if(res.error){ say("Couldn't save that like."); return; }
+    state.myLikes[postId] = !liked;
+    loadFeed();
+  });
+}
+
+/* ---------- new post: photo + voice ---------- */
+function attachStatus(msg){ $("attachStatus").textContent = msg; }
+$("photoInput").addEventListener("change", function(){
+  var f = $("photoInput").files[0];
+  if(!f) return;
+  attachStatus("Uploading photo...");
+  say("Uploading photo.");
+  var path = "img/" + state.user.id + "/" + Date.now() + "-" + f.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  sb.storage.from("post-media").upload(path, f, { contentType: f.type || "image/jpeg" }).then(function(res){
+    if(res.error){ attachStatus("Photo upload failed: " + res.error.message); say("Photo upload failed."); return; }
+    state.pendingImageUrl = sb.storage.from("post-media").getPublicUrl(path).data.publicUrl;
+    attachStatus("Photo attached ✓");
+    say("Photo attached.");
+  });
+});
+$("recBtn").addEventListener("click", function(){
+  if(state.recording){ stopRecording(); return; }
+  if(!window.MediaRecorder || !navigator.mediaDevices){ say("Voice recording is not supported on this device."); return; }
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream){
+    try{
+      var mr = new MediaRecorder(stream);
+      state.mediaRecorder = mr;
+      state.audioChunks = [];
+      mr.ondataavailable = function(e){ if(e.data.size) state.audioChunks.push(e.data); };
+      mr.onstop = function(){
+        stream.getTracks().forEach(function(t){ t.stop(); });
+        uploadVoiceClip(new Blob(state.audioChunks, { type: mr.mimeType || "audio/webm" }));
+      };
+      mr.start();
+      state.recording = true;
+      var b = $("recBtn");
+      b.classList.add("recording"); b.setAttribute("aria-pressed", "true"); b.textContent = "⏹ Stop recording";
+      attachStatus("Recording... tap Stop when done.");
+      say("Recording started.");
+    }catch(e){ say("Couldn't start recording."); }
+  }).catch(function(){ say("Microphone access was denied."); });
+});
+function stopRecording(){
+  if(state.mediaRecorder && state.recording){
+    try{ state.mediaRecorder.stop(); }catch(e){}
+  }
+  state.recording = false;
+  var b = $("recBtn");
+  b.classList.remove("recording"); b.setAttribute("aria-pressed", "false"); b.textContent = "🎤 Record voice post";
+}
+function uploadVoiceClip(blob){
+  attachStatus("Uploading voice clip...");
+  say("Uploading voice clip.");
+  var path = "voice/" + state.user.id + "/" + Date.now() + ".webm";
+  sb.storage.from("post-media").upload(path, blob, { contentType: "audio/webm" }).then(function(res){
+    if(res.error){ attachStatus("Voice upload failed: " + res.error.message); say("Voice upload failed."); return; }
+    state.pendingAudioUrl = sb.storage.from("post-media").getPublicUrl(path).data.publicUrl;
+    attachStatus("Voice clip attached ✓");
+    say("Voice clip attached.");
+  });
+}
+function resetComposer(){
+  state.pendingImageUrl = null; state.pendingAudioUrl = null;
+  $("photoInput").value = ""; attachStatus("");
+}
+$("postText").addEventListener("input", function(){ $("charCount").textContent = $("postText").value.length; });
+$("sendPostBtn").addEventListener("click", function(){
+  var text = $("postText").value.trim();
+  if(!text && !state.pendingImageUrl && !state.pendingAudioUrl){ showError("postError", "Write something, or attach a photo or voice clip first."); return; }
+  $("postError").hidden = true;
+  $("sendPostBtn").disabled = true;
+  sb.from("posts").insert({
+    user_id: state.user.id,
+    content: text || "🎤 Voice post",
+    image_url: state.pendingImageUrl,
+    audio_url: state.pendingAudioUrl
+  }).then(function(res){
+    $("sendPostBtn").disabled = false;
+    if(res.error){ showError("postError", res.error.message); return; }
+    $("postText").value = ""; $("charCount").textContent = "0";
+    resetComposer();
+    say("Posted.");
+    selectTab("feedView");
+    loadFeed();
+  });
+});
+
+/* ---------- thread ---------- */
+function openThread(postId){
+  state.threadPostId = postId;
+  show("threadView");
+  $("threadPost").innerHTML = '<div class="empty">Loading...</div>';
+  $("replyList").innerHTML = "";
+  sb.from("posts").select("id,content,image_url,audio_url,created_at,user_id").eq("id", postId).single().then(function(res){
+    if(res.error || !res.data){ $("threadPost").innerHTML = '<div class="error">Post not found.</div>'; return; }
+    var p = res.data;
+    loadProfiles([p.user_id]).then(function(){
+      var name = state.profiles[p.user_id] || "metalhead";
+      $("threadPost").innerHTML = '<div class="card"><div>' + memberBtn(p.user_id, name) +
+        '<span class="when">' + esc(ago(p.created_at)) + '</span></div><p class="content">' + esc(p.content) + "</p>" + mediaHtml(p) + "</div>";
+      bindMemberButtons($("threadPost"));
+      loadReplies();
+    });
+  });
+}
+function loadReplies(){
+  sb.from("replies").select("id,content,created_at,user_id").eq("post_id", state.threadPostId).order("created_at", {ascending:true})
+    .then(function(res){
+      if(res.error){ $("replyList").innerHTML = '<div class="error">' + esc(res.error.message) + "</div>"; return; }
+      var ids = res.data.map(function(r){ return r.user_id; });
+      loadProfiles(ids).then(function(){
+        var box = $("replyList");
+        box.innerHTML = "";
+        if(!res.data.length) box.innerHTML = '<div class="empty">No replies yet.</div>';
+        res.data.forEach(function(r){
+          var d = document.createElement("div");
+          d.className = "reply";
+          d.innerHTML = '<div>' + memberBtn(r.user_id, state.profiles[r.user_id] || "metalhead") +
+            '<span class="when">' + esc(ago(r.created_at)) + "</span></div>" +
+            '<p class="content">' + esc(r.content) + "</p>";
+          box.appendChild(d);
+        });
+        bindMemberButtons(box);
+      });
+    });
+}
+$("sendReplyBtn").addEventListener("click", function(){
+  var text = $("replyText").value.trim();
+  if(!text){ say("Write a reply first."); return; }
+  $("sendReplyBtn").disabled = true;
+  sb.from("replies").insert({ post_id: state.threadPostId, user_id: state.user.id, content: text }).then(function(res){
+    $("sendReplyBtn").disabled = false;
+    if(res.error){ say(res.error.message); return; }
+    $("replyText").value = "";
+    say("Reply posted.");
+    loadReplies();
+  });
+});
+$("backBtn").addEventListener("click", function(){ selectTab("feedView"); loadFeed(); });
+
+/* ---------- member profiles ---------- */
+function openMember(userId, returnView){
+  state.memberId = userId;
+  state.memberReturn = returnView || "feedView";
+  show("memberView");
+  $("memberCard").innerHTML = '<div class="empty">Loading...</div>';
+  $("memberPosts").innerHTML = "";
+  sb.from("profiles").select("username,favorite_bands,created_at").eq("id", userId).single().then(function(res){
+    if(res.error || !res.data){ $("memberCard").innerHTML = '<div class="error">Member not found.</div>'; return; }
+    var p = res.data;
+    var joined = p.created_at ? new Date(p.created_at).toLocaleDateString() : "unknown";
+    var h = '<div class="card"><div class="who" style="font-size:22px">' + esc(p.username) + "</div>" +
+      '<p class="content">Favorite bands: ' + esc(p.favorite_bands || "—") + "<br>Joined: " + esc(joined) + "</p>";
+    if(userId !== state.user.id) h += '<button class="btn small" id="msgMemberBtn">💬 Message ' + esc(p.username) + "</button>";
+    h += "</div>";
+    $("memberCard").innerHTML = h;
+    var mb = $("msgMemberBtn");
+    if(mb) mb.addEventListener("click", function(){ openChat(userId, p.username); });
+    say("Profile of " + p.username + ".");
+    sb.from("posts").select("id,content,image_url,audio_url,created_at,user_id").eq("user_id", userId).order("created_at", {ascending:false}).limit(20)
+      .then(function(pr2){
+        if(pr2.error){ $("memberPosts").innerHTML = '<div class="error">' + esc(pr2.error.message) + "</div>"; return; }
+        if(!pr2.data.length){ $("memberPosts").innerHTML = '<div class="empty">No posts yet.</div>'; return; }
+        var pids = pr2.data.map(function(x){ return x.id; });
+        Promise.all([
+          sb.from("likes").select("post_id,user_id").in("post_id", pids),
+          sb.from("replies").select("post_id").in("post_id", pids)
+        ]).then(function(r){
+          var lc = {}, rc = {};
+          (r[0].data || []).forEach(function(l){ lc[l.post_id] = (lc[l.post_id] || 0) + 1; if(l.user_id === state.user.id) state.myLikes[l.post_id] = true; });
+          (r[1].data || []).forEach(function(x){ rc[x.post_id] = (rc[x.post_id] || 0) + 1; });
+          var box = $("memberPosts");
+          box.innerHTML = "";
+          pr2.data.forEach(function(x){ box.appendChild(postCard(x, p.username, lc[x.id] || 0, rc[x.id] || 0)); });
+          bindFeedButtons();
+        });
+      });
+  });
+}
+$("memberBackBtn").addEventListener("click", function(){
+  var rv = state.memberReturn || "feedView";
+  if(TABVIEWS.indexOf(rv) !== -1){ selectTab(rv); if(rv === "feedView") loadFeed(); }
+  else show(rv);
+});
+
+/* ---------- show board ---------- */
+$("addShowToggle").addEventListener("click", function(){
+  var f = $("showForm");
+  f.hidden = !f.hidden;
+  $("addShowToggle").textContent = f.hidden ? "＋ Post a show" : "− Hide form";
+});
+$("sendShowBtn").addEventListener("click", function(){
+  var title = $("showTitle").value.trim();
+  if(!title){ showError("showError", "Give the show a name first."); return; }
+  $("showError").hidden = true;
+  $("sendShowBtn").disabled = true;
+  sb.from("events").insert({
+    title: title,
+    venue: $("showVenue").value.trim(),
+    city: $("showCity").value.trim(),
+    event_date: $("showDate").value || null,
+    details: $("showDetails").value.trim(),
+    posted_by: state.user.id
+  }).then(function(res){
+    $("sendShowBtn").disabled = false;
+    if(res.error){ showError("showError", res.error.message); return; }
+    ["showTitle","showVenue","showCity","showDate","showDetails"].forEach(function(id){ $(id).value = ""; });
+    $("showForm").hidden = true; $("addShowToggle").textContent = "＋ Post a show";
+    say("Show posted.");
+    loadShows();
+  });
+});
+function loadShows(){
+  var list = $("showList");
+  list.innerHTML = '<div class="empty">Loading shows...</div>';
+  sb.from("events").select("id,title,venue,city,event_date,details,created_at,posted_by").order("event_date", {ascending:true, nullsFirst:false}).limit(40)
+    .then(function(res){
+      if(res.error){ list.innerHTML = '<div class="error">' + esc(res.error.message) + "</div>"; return; }
+      if(!res.data.length){ list.innerHTML = '<div class="empty">No shows posted yet. Know a gig? Post it. 🤘</div>'; return; }
+      var eids = res.data.map(function(e){ return e.id; });
+      var pids = res.data.map(function(e){ return e.posted_by; });
+      Promise.all([
+        loadProfiles(pids),
+        sb.from("rsvps").select("event_id,user_id").in("event_id", eids)
+      ]).then(function(r){
+        var counts = {};
+        state.myRsvps = {};
+        (r[1].data || []).forEach(function(x){
+          counts[x.event_id] = (counts[x.event_id] || 0) + 1;
+          if(x.user_id === state.user.id) state.myRsvps[x.event_id] = true;
+        });
+        list.innerHTML = "";
+        res.data.forEach(function(e){
+          var going = !!state.myRsvps[e.id];
+          var card = document.createElement("article");
+          card.className = "card";
+          var h = '<div class="who" style="font-size:20px">' + esc(e.title) + "</div>" +
+            '<p class="content">📍 ' + esc([e.venue, e.city].filter(Boolean).join(", ") || "venue TBA") +
+            "<br>📅 " + esc(fmtDate(e.event_date)) +
+            (e.details ? "<br>" + esc(e.details) : "") +
+            '<br><span class="when">posted by ' + esc(state.profiles[e.posted_by] || "a metalhead") + "</span></p>" +
+            '<div class="row">' +
+            '<button class="btn small' + (going ? "" : " secondary") + '" data-rsvp="' + e.id + '" aria-pressed="' + going + '" aria-label="' + (going ? "You are going. " : "") + (counts[e.id] || 0) + ' people going">' +
+            (going ? "✓ Going" : "I'm going") + " (" + (counts[e.id] || 0) + ")</button></div>";
+          card.innerHTML = h;
+          list.appendChild(card);
+        });
+        list.querySelectorAll("[data-rsvp]").forEach(function(b){
+          b.addEventListener("click", function(){ toggleRsvp(b.getAttribute("data-rsvp")); });
+        });
+      });
+    });
+}
+function toggleRsvp(eventId){
+  var going = !!state.myRsvps[eventId];
+  var q = going
+    ? sb.from("rsvps").delete().eq("event_id", eventId).eq("user_id", state.user.id)
+    : sb.from("rsvps").insert({ event_id: eventId, user_id: state.user.id });
+  q.then(function(res){
+    if(res.error){ say("Couldn't save that."); return; }
+    say(going ? "RSVP removed." : "You're on the list. 🤘");
+    loadShows();
+  });
+}
+
+/* ---------- polls ---------- */
+$("addPollToggle").addEventListener("click", function(){
+  var f = $("pollForm");
+  f.hidden = !f.hidden;
+  $("addPollToggle").textContent = f.hidden ? "＋ New poll" : "− Hide form";
+});
+$("sendPollBtn").addEventListener("click", function(){
+  var q = $("pollQ").value.trim();
+  var opts = $("pollOpts").value.split("\n").map(function(s){ return s.trim(); }).filter(Boolean);
+  if(!q){ showError("pollError", "Ask a question first."); return; }
+  if(opts.length < 2){ showError("pollError", "Give at least 2 options, one per line."); return; }
+  if(opts.length > 6) opts = opts.slice(0, 6);
+  $("pollError").hidden = true;
+  $("sendPollBtn").disabled = true;
+  sb.from("polls").insert({ question: q, options: opts, created_by: state.user.id }).then(function(res){
+    $("sendPollBtn").disabled = false;
+    if(res.error){ showError("pollError", res.error.message); return; }
+    $("pollQ").value = ""; $("pollOpts").value = "";
+    $("pollForm").hidden = true; $("addPollToggle").textContent = "＋ New poll";
+    say("Poll posted.");
+    loadPolls();
+  });
+});
+function loadPolls(){
+  var list = $("pollList");
+  list.innerHTML = '<div class="empty">Loading polls...</div>';
+  sb.from("polls").select("id,question,options,created_at,created_by").order("created_at", {ascending:false}).limit(20)
+    .then(function(res){
+      if(res.error){ list.innerHTML = '<div class="error">' + esc(res.error.message) + "</div>"; return; }
+      if(!res.data.length){ list.innerHTML = '<div class="empty">No polls yet. Settle a debate. 🤘</div>'; return; }
+      var polls = res.data;
+      var pids = polls.map(function(p){ return p.id; });
+      Promise.all([
+        loadProfiles(polls.map(function(p){ return p.created_by; })),
+        sb.from("poll_votes").select("poll_id,user_id,option_index").in("poll_id", pids)
+      ]).then(function(r){
+        var votes = r[1].data || [];
+        var counts = {}, mine = {};
+        state.myVotes = {};
+        votes.forEach(function(v){
+          counts[v.poll_id] = counts[v.poll_id] || {};
+          counts[v.poll_id][v.option_index] = (counts[v.poll_id][v.option_index] || 0) + 1;
+          if(v.user_id === state.user.id){ mine[v.poll_id] = v.option_index; state.myVotes[v.poll_id] = v.option_index; }
+        });
+        list.innerHTML = "";
+        polls.forEach(function(p){
+          var opts = Array.isArray(p.options) ? p.options : [];
+          var c = counts[p.id] || {};
+          var total = opts.reduce(function(s, _, i){ return s + (c[i] || 0); }, 0);
+          var voted = mine[p.id] !== undefined;
+          var card = document.createElement("article");
+          card.className = "card";
+          var h = '<div class="who" style="font-size:20px">' + esc(p.question) + "</div>" +
+            '<div class="when" style="margin:4px 0 8px">by ' + esc(state.profiles[p.created_by] || "a metalhead") + " · " + total + " vote" + (total === 1 ? "" : "s") + "</div>";
+          opts.forEach(function(opt, i){
+            var n = c[i] || 0;
+            var pct = total ? Math.round(n / total * 100) : 0;
+            if(voted){
+              h += '<div class="pollbar" role="img" aria-label="' + esc(opt) + ": " + n + " votes, " + pct + ' percent">' +
+                '<div class="pollfill" style="width:' + Math.max(pct, 8) + '%">' + esc(opt) + " — " + pct + "%</div></div>";
+            }else{
+              h += '<button class="btn small secondary" style="width:100%;margin:6px 0;text-align:left" data-vote="' + p.id + ":" + i + '">' + esc(opt) + "</button>";
+            }
+          });
+          card.innerHTML = h;
+          list.appendChild(card);
+        });
+        list.querySelectorAll("[data-vote]").forEach(function(b){
+          b.addEventListener("click", function(){
+            var parts = b.getAttribute("data-vote").split(":");
+            castVote(parts[0], parseInt(parts[1], 10));
+          });
+        });
+      });
+    });
+}
+function castVote(pollId, idx){
+  sb.from("poll_votes").insert({ poll_id: pollId, user_id: state.user.id, option_index: idx }).then(function(res){
+    if(res.error){ say("Couldn't save your vote."); return; }
+    say("Vote counted.");
+    loadPolls();
+  });
+}
+
+/* ---------- direct messages ---------- */
+function loadChats(){
+  var list = $("chatList");
+  list.innerHTML = '<div class="empty">Loading messages...</div>';
+  sb.from("messages").select("id,sender_id,receiver_id,body,created_at")
+    .or("sender_id.eq." + state.user.id + ",receiver_id.eq." + state.user.id)
+    .order("created_at", {ascending:false}).limit(200)
+    .then(function(res){
+      if(res.error){ list.innerHTML = '<div class="error">' + esc(res.error.message) + "</div>"; return; }
+      var seen = {}, convos = [];
+      res.data.forEach(function(m){
+        var partner = m.sender_id === state.user.id ? m.receiver_id : m.sender_id;
+        if(!seen[partner]){ seen[partner] = true; convos.push({ partner: partner, last: m }); }
+      });
+      if(!convos.length){ list.innerHTML = '<div class="empty">No messages yet. Say hi to a metalhead. 🤘</div>'; return; }
+      loadProfiles(convos.map(function(c){ return c.partner; })).then(function(){
+        list.innerHTML = "";
+        convos.forEach(function(c){
+          var name = state.profiles[c.partner] || "metalhead";
+          var b = document.createElement("button");
+          b.className = "chatrow";
+          b.setAttribute("aria-label", "Chat with " + name + ", last message " + ago(c.last.created_at));
+          b.innerHTML = '<span><span class="who">' + esc(name) + '</span><span class="when">' + esc(ago(c.last.created_at)) + '</span>' +
+            '<span class="preview">' + esc(c.last.body) + "</span></span>";
+          b.addEventListener("click", function(){ openChat(c.partner, name); });
+          list.appendChild(b);
+        });
+      });
+    });
+}
+$("newChatBtn").addEventListener("click", function(){
+  show("pickMemberView");
+  var list = $("pickList");
+  list.innerHTML = '<div class="empty">Loading members...</div>';
+  sb.from("profiles").select("id,username").order("username", {ascending:true}).limit(60).then(function(res){
+    if(res.error){ list.innerHTML = '<div class="error">' + esc(res.error.message) + "</div>"; return; }
+    list.innerHTML = "";
+    var others = res.data.filter(function(p){ return p.id !== state.user.id; });
+    if(!others.length){ list.innerHTML = '<div class="empty">No other members yet.</div>'; return; }
+    others.forEach(function(p){
+      state.profiles[p.id] = p.username;
+      var b = document.createElement("button");
+      b.className = "chatrow";
+      b.innerHTML = '<span class="who">' + esc(p.username) + "</span>";
+      b.setAttribute("aria-label", "Message " + p.username);
+      b.addEventListener("click", function(){ openChat(p.id, p.username); });
+      list.appendChild(b);
+    });
+  });
+});
+$("pickBackBtn").addEventListener("click", function(){ selectTab("chatsView"); loadChats(); });
+function openChat(partnerId, partnerName){
+  state.chatPartner = { id: partnerId, name: partnerName || state.profiles[partnerId] || "metalhead" };
+  $("chatTitle").textContent = "Chat with " + state.chatPartner.name;
+  $("chatText").value = "";
+  show("chatView");
+  loadChatMessages();
+  say("Chat with " + state.chatPartner.name + ".");
+}
+function loadChatMessages(){
+  var box = $("chatMessages");
+  if(!state.chatPartner) return;
+  var me = state.user.id, them = state.chatPartner.id;
+  sb.from("messages").select("id,sender_id,body,created_at")
+    .or("and(sender_id.eq." + me + ",receiver_id.eq." + them + "),and(sender_id.eq." + them + ",receiver_id.eq." + me + ")")
+    .order("created_at", {ascending:true}).limit(100)
+    .then(function(res){
+      if(res.error){ box.innerHTML = '<div class="error">' + esc(res.error.message) + "</div>"; return; }
+      box.innerHTML = "";
+      if(!res.data.length) box.innerHTML = '<div class="empty">No messages yet. Break the ice. 🤘</div>';
+      res.data.forEach(function(m){
+        var d = document.createElement("div");
+        d.className = "bubble " + (m.sender_id === me ? "me" : "them");
+        d.innerHTML = esc(m.body) + '<span class="when">' + esc(ago(m.created_at)) + "</span>";
+        box.appendChild(d);
+      });
+      box.scrollTop = box.scrollHeight;
+    });
+}
+$("sendChatBtn").addEventListener("click", function(){
+  var text = $("chatText").value.trim();
+  if(!text || !state.chatPartner){ if(!text) say("Write a message first."); return; }
+  $("sendChatBtn").disabled = true;
+  sb.from("messages").insert({ sender_id: state.user.id, receiver_id: state.chatPartner.id, body: text }).then(function(res){
+    $("sendChatBtn").disabled = false;
+    if(res.error){ say(res.error.message); return; }
+    $("chatText").value = "";
+    loadChatMessages();
+  });
+});
+$("chatBackBtn").addEventListener("click", function(){ state.chatPartner = null; selectTab("chatsView"); loadChats(); });
+
+/* ---------- search ---------- */
+function runSearch(){
+  var q = $("searchInput").value.trim();
+  var box = $("searchResults");
+  if(q.length < 2){ box.innerHTML = '<div class="empty">Type at least 2 letters.</div>'; return; }
+  box.innerHTML = '<div class="empty">Searching...</div>';
+  var like = "%" + q.replace(/[%_]/g, "") + "%";
+  Promise.all([
+    sb.from("profiles").select("id,username,favorite_bands").ilike("username", like).limit(20),
+    sb.from("posts").select("id,content,image_url,audio_url,created_at,user_id").ilike("content", like).order("created_at", {ascending:false}).limit(20)
+  ]).then(function(r){
+    if(r[0].error || r[1].error){ box.innerHTML = '<div class="error">Search failed. Try again.</div>'; return; }
+    var members = r[0].data || [], posts = r[1].data || [];
+    if(!members.length && !posts.length){ box.innerHTML = '<div class="empty">Nothing found for "' + esc(q) + '".</div>'; return; }
+    var h = "";
+    if(members.length){
+      h += '<div class="sectionhead">Members (' + members.length + ")</div>";
+      members.forEach(function(m){
+        state.profiles[m.id] = m.username;
+        h += '<button class="chatrow" data-smember="' + esc(m.id) + '"><span class="who">' + esc(m.username) + "</span>" +
+          (m.favorite_bands ? '<span class="preview">' + esc(m.favorite_bands) + "</span>" : "") + "</button>";
+      });
+    }
+    box.innerHTML = h + '<div id="searchPosts"></div>';
+    if(posts.length){
+      var ph = document.createElement("div");
+      ph.innerHTML = '<div class="sectionhead">Posts (' + posts.length + ")</div>";
+      box.appendChild(ph);
+      var pids = posts.map(function(p){ return p.id; });
+      loadProfiles(posts.map(function(p){ return p.user_id; })).then(function(){
+        Promise.all([
+          sb.from("likes").select("post_id,user_id").in("post_id", pids),
+          sb.from("replies").select("post_id").in("post_id", pids)
+        ]).then(function(rr){
+          var lc = {}, rc = {};
+          (rr[0].data || []).forEach(function(l){ lc[l.post_id] = (lc[l.post_id] || 0) + 1; if(l.user_id === state.user.id) state.myLikes[l.post_id] = true; });
+          (rr[1].data || []).forEach(function(x){ rc[x.post_id] = (rc[x.post_id] || 0) + 1; });
+          var sp = $("searchPosts");
+          posts.forEach(function(p){ sp.appendChild(postCard(p, state.profiles[p.user_id] || "metalhead", lc[p.id] || 0, rc[p.id] || 0)); });
+          bindFeedButtons(); bindMemberButtons(sp);
+        });
+      });
+    }
+    box.querySelectorAll("[data-smember]").forEach(function(b){
+      b.addEventListener("click", function(){ openMember(b.getAttribute("data-smember"), "searchView"); });
+    });
+    say(members.length + " members and " + posts.length + " posts found.");
+  });
+}
+$("searchBtn").addEventListener("click", runSearch);
+$("searchInput").addEventListener("keydown", function(e){ if(e.key === "Enter") runSearch(); });
+
+/* ---------- tabs ---------- */
+$("tabFeed").addEventListener("click", function(){ selectTab("feedView"); loadFeed(); });
+$("tabShows").addEventListener("click", function(){ selectTab("showsView"); loadShows(); });
+$("tabPolls").addEventListener("click", function(){ selectTab("pollsView"); loadPolls(); });
+$("tabChats").addEventListener("click", function(){ selectTab("chatsView"); loadChats(); });
+$("tabSearch").addEventListener("click", function(){ selectTab("searchView"); });
+$("tabPost").addEventListener("click", function(){ selectTab("postView"); });
+$("tabProfile").addEventListener("click", function(){
+  selectTab("profileView");
+  sb.from("profiles").select("username,favorite_bands").eq("id", state.user.id).single().then(function(res){
+    if(res.data){ $("editBands").value = res.data.favorite_bands || ""; }
+  });
+});
+
+/* ---------- boot ---------- */
+function subscribeLive(){
+  sb.channel("mh-feed")
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "posts" }, function(payload){
+      var p = payload.new;
+      if(p.user_id === state.user.id) return;
+      loadProfiles([p.user_id]).then(function(){
+        say("New post from " + (state.profiles[p.user_id] || "a metalhead") + ".");
+        if(!$("feedView").hidden) loadFeed();
+      });
+    })
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, function(payload){
+      var m = payload.new;
+      if(m.sender_id === state.user.id || m.receiver_id !== state.user.id) return;
+      loadProfiles([m.sender_id]).then(function(){
+        var name = state.profiles[m.sender_id] || "a metalhead";
+        say("New message from " + name + ".");
+        if(state.chatPartner && state.chatPartner.id === m.sender_id && !$("chatView").hidden) loadChatMessages();
+        else if(!$("chatsView").hidden) loadChats();
+      });
+    })
+    .subscribe();
+}
+function boot(){
+  sb.auth.getSession().then(function(res){
+    var session = res.data.session;
+    if(!session || !session.user){ show("authView"); return; }
+    state.user = session.user;
+    sb.from("profiles").select("id,username").eq("id", state.user.id).single().then(function(pr){
+      if(pr.error || !pr.data){ show("setupView"); return; }
+      state.profile = pr.data;
+      state.profiles[state.user.id] = pr.data.username;
+      selectTab("feedView");
+      loadFeed();
+      subscribeLive();
+      say("Welcome back, " + pr.data.username + ".");
+    });
+  });
+}
+sb.auth.onAuthStateChange(function(){ boot(); });
+syncVoiceBtn();
+boot();
+</script>
+</body>
+</html>
