@@ -1,1 +1,286 @@
 
+name: Build Metalhead Social APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: 'Version name (e.g. 1.0)'
+        required: false
+        type: string
+        default: ''
+      version_code:
+        description: 'Version code - must be a whole number bigger than last time'
+        required: false
+        type: string
+        default: ''
+      release_notes:
+        description: 'What changed in this version (shown in the store)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    env:
+      APP_VERSION_NAME: ${{ inputs.version_name || '1.0' }}
+      APP_VERSION_CODE: ${{ inputs.version_code || '1' }}
+      APP_RELEASE_NOTES: ${{ inputs.release_notes || 'Update' }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK packages
+        run: |
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          if ! command -v sdkmanager >/dev/null 2>&1; then
+            export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin"
+          fi
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Scaffold Android project
+        run: |
+          echo "=== Files in repo ==="
+          ls -la
+          HTML_FILE=./index.html
+          if [ ! -f "$HTML_FILE" ]; then
+            echo "ERROR: index.html was not found in the repository root."
+            echo "Upload index.html to the repository root first (Add file > Upload files), then re-run this workflow."
+            exit 1
+          fi
+          echo "Using $HTML_FILE as the app page."
+          if ! grep -q 'id="metalheads-app"' "$HTML_FILE"; then
+            echo "ERROR: $HTML_FILE is not the Metalhead Social file (metalheads-app marker missing)."
+            echo "Upload the Metalhead Social index.html to the repository root, then re-run this workflow."
+            exit 1
+          fi
+
+          mkdir -p app/src/main/java/com/metalheadsocial/app app/src/main/assets/www
+
+          cp "$HTML_FILE" app/src/main/assets/www/index.html
+
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "MetalheadSocialApp"
+          include(":app")
+          EOF
+
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.5.2' apply false
+          }
+          EOF
+
+          cat > app/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.metalheadsocial.app'
+              compileSdk 34
+              defaultConfig {
+                  applicationId 'com.metalheadsocial.app'
+                  minSdk 24
+                  targetSdk 34
+                  versionCode __APP_VERSION_CODE__
+                  versionName '__APP_VERSION_NAME__'
+              }
+          }
+          EOF
+          sed -i "s/__APP_VERSION_CODE__/$APP_VERSION_CODE/g; s/__APP_VERSION_NAME__/$APP_VERSION_NAME/g" app/build.gradle
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <application
+                  android:label="Metalhead Social"
+                  android:theme="@android:style/Theme.Material.Light.NoActionBar">
+                  <activity
+                      android:name="com.metalheadsocial.app.MainActivity"
+                      android:exported="true"
+                      android:windowSoftInputMode="adjustResize">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/java/com/metalheadsocial/app/MainActivity.java <<'EOF'
+          package com.metalheadsocial.app;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.speech.tts.TextToSpeech;
+          import android.webkit.JavascriptInterface;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import java.util.Locale;
+
+          public class MainActivity extends Activity {
+              private WebView webView;
+              private TextToSpeech tts;
+              private boolean ttsReady = false;
+              private String pendingTts = null;
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  webView = new WebView(this);
+                  webView.getSettings().setJavaScriptEnabled(true);
+                  webView.getSettings().setDomStorageEnabled(true);
+                  webView.getSettings().setAllowFileAccess(true);
+                  webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
+                  webView.setWebViewClient(new WebViewClient());
+                  tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
+                      @Override
+                      public void onInit(int status) {
+                          if (status == TextToSpeech.SUCCESS) {
+                              try {
+                                  int result = tts.setLanguage(Locale.US);
+                                  ttsReady = result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED;
+                              } catch (Exception e) {
+                                  ttsReady = false;
+                              }
+                              if (ttsReady && pendingTts != null) {
+                                  String text = pendingTts;
+                                  pendingTts = null;
+                                  try {
+                                      tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "metalhead-reader");
+                                  } catch (Exception ignored) {}
+                              }
+                          }
+                      }
+                  });
+                  webView.addJavascriptInterface(new Object() {
+                      @JavascriptInterface
+                      public void speak(String text) {
+                          if (text == null) return;
+                          if (ttsReady && tts != null) {
+                              try {
+                                  tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "metalhead-reader");
+                              } catch (Exception ignored) {}
+                          } else {
+                              pendingTts = text;
+                          }
+                      }
+                      @JavascriptInterface
+                      public void stop() {
+                          pendingTts = null;
+                          try {
+                              if (tts != null) tts.stop();
+                          } catch (Exception ignored) {}
+                      }
+                      @JavascriptInterface
+                      public void cancel() {
+                          stop();
+                      }
+                  }, "LynxosTts");
+                  if (savedInstanceState != null) {
+                      webView.restoreState(savedInstanceState);
+                  } else {
+                      webView.loadUrl("file:///android_asset/www/index.html");
+                  }
+                  setContentView(webView);
+              }
+
+              @Override
+              protected void onSaveInstanceState(Bundle outState) {
+                  super.onSaveInstanceState(outState);
+                  if (webView != null) {
+                      webView.saveState(outState);
+                  }
+              }
+
+              @Override
+              public void onBackPressed() {
+                  if (webView != null && webView.canGoBack()) {
+                      webView.goBack();
+                  } else {
+                      super.onBackPressed();
+                  }
+              }
+
+              @Override
+              protected void onDestroy() {
+                  if (tts != null) {
+                      try {
+                          tts.stop();
+                          tts.shutdown();
+                      } catch (Exception ignored) {}
+                      tts = null;
+                  }
+                  super.onDestroy();
+              }
+          }
+          EOF
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+
+      - name: Build release APK (unsigned)
+        run: gradle :app:assembleRelease
+
+      - name: Sign release APK with the Lynxos key
+        run: |
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          APKSIGNER="$ANDROID_HOME/build-tools/34.0.0/apksigner"
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | tr -d '[:space:]' | base64 -d > /tmp/lynxos-release.p12
+          if [ ! -s /tmp/lynxos-release.p12 ]; then
+            echo "ERROR: signing key secret is empty or did not decode. Re-add the KEYSTORE_BASE64 secret."
+            exit 1
+          fi
+          "$APKSIGNER" sign --ks /tmp/lynxos-release.p12 --ks-type PKCS12 \
+            --ks-pass "pass:${{ secrets.KEYSTORE_PASSWORD }}" \
+            --key-pass "pass:${{ secrets.KEY_PASSWORD }}" \
+            --ks-key-alias "${{ secrets.KEY_ALIAS }}" \
+            --out app/build/outputs/apk/release/app-release.apk \
+            app/build/outputs/apk/release/app-release-unsigned.apk
+          rm -f /tmp/lynxos-release.p12
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk | head -3
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: metalhead-social-apk
+          path: app/build/outputs/apk/release/app-release.apk
+
+      - name: Publish GitHub release
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.APP_VERSION_NAME }}+${{ env.APP_VERSION_CODE }}
+          name: v${{ env.APP_VERSION_NAME }}+${{ env.APP_VERSION_CODE }}
+          body: ${{ env.APP_RELEASE_NOTES }}
+          files: app/build/outputs/apk/release/app-release.apk
