@@ -127,10 +127,17 @@ jobs:
                   <activity
                       android:name="com.metalheadsocial.app.MainActivity"
                       android:exported="true"
+                      android:launchMode="singleTask"
                       android:windowSoftInputMode="adjustResize">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                      <intent-filter>
+                          <action android:name="android.intent.action.VIEW" />
+                          <category android:name="android.intent.category.DEFAULT" />
+                          <category android:name="android.intent.category.BROWSABLE" />
+                          <data android:scheme="com.metalheadsocial.app" android:host="auth-callback" />
                       </intent-filter>
                   </activity>
                   <receiver
@@ -166,6 +173,8 @@ jobs:
               private TextToSpeech tts;
               private boolean ttsReady = false;
               private String pendingTts = null;
+              private boolean pageLoaded = false;
+              private String pendingAuthUrl = null;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -176,7 +185,18 @@ jobs:
                   webView.getSettings().setDomStorageEnabled(true);
                   webView.getSettings().setAllowFileAccess(true);
                   webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
-                  webView.setWebViewClient(new WebViewClient());
+                  webView.setWebViewClient(new WebViewClient() {
+                      @Override
+                      public void onPageFinished(WebView view, String url) {
+                          super.onPageFinished(view, url);
+                          pageLoaded = true;
+                          if (pendingAuthUrl != null) {
+                              String u = pendingAuthUrl;
+                              pendingAuthUrl = null;
+                              deliverAuthUrl(u);
+                          }
+                      }
+                  });
                   final Activity self = this;
                   webView.addJavascriptInterface(new Object() {
                       @JavascriptInterface
@@ -263,12 +283,65 @@ jobs:
                           });
                       }
                   }, "LynxosBattery");
+                  webView.addJavascriptInterface(new Object() {
+                      @JavascriptInterface
+                      public void open(final String url) {
+                          self.runOnUiThread(new Runnable() {
+                              @Override
+                              public void run() {
+                                  try {
+                                      Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                                      i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                      startActivity(i);
+                                  } catch (Exception ignored) {}
+                              }
+                          });
+                      }
+                  }, "LynxosBrowser");
                   if (savedInstanceState != null) {
                       webView.restoreState(savedInstanceState);
                   } else {
                       webView.loadUrl("file:///android_asset/www/index.html");
                   }
                   setContentView(webView);
+                  handleAuthIntent(getIntent());
+              }
+
+              private void handleAuthIntent(Intent intent) {
+                  try {
+                      if (intent == null || intent.getData() == null) return;
+                      String d = intent.getDataString();
+                      if (d != null && d.startsWith("com.metalheadsocial.app://auth-callback")) {
+                          if (pageLoaded) {
+                              deliverAuthUrl(d);
+                          } else {
+                              pendingAuthUrl = d;
+                          }
+                      }
+                  } catch (Exception ignored) {}
+              }
+
+              private void deliverAuthUrl(final String url) {
+                  try {
+                      final String esc = url.replace("\\", "\\\\").replace("'", "\\'");
+                      runOnUiThread(new Runnable() {
+                          @Override
+                          public void run() {
+                              try {
+                                  if (webView != null) {
+                                      webView.evaluateJavascript("window.__handleAuthCallback('" + esc + "')", null);
+                                  }
+                              } catch (Exception ignored) {}
+                          }
+                      });
+                  } catch (Exception ignored) {}
+              }
+
+              @Override
+              protected void onNewIntent(Intent intent) {
+                  super.onNewIntent(intent);
+                  try { setIntent(intent); } catch (Exception ignored) {}
+                  handleAuthIntent(intent);
               }
 
               @Override
