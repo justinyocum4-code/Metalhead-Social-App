@@ -110,6 +110,10 @@ jobs:
                   versionCode __APP_VERSION_CODE__
                   versionName '__APP_VERSION_NAME__'
               }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_1_8
+                  targetCompatibility JavaVersion.VERSION_1_8
+              }
           }
           EOF
           sed -i "s/__APP_VERSION_CODE__/$APP_VERSION_CODE/g; s/__APP_VERSION_NAME__/$APP_VERSION_NAME/g" app/build.gradle
@@ -331,6 +335,19 @@ jobs:
                           });
                       }
                   }, "LynxosBrowser");
+                  webView.addJavascriptInterface(new Object() {
+                      @JavascriptInterface
+                      public void exitApp() {
+                          try {
+                              MainActivity.this.runOnUiThread(new Runnable() {
+                                  @Override
+                                  public void run() {
+                                      try { MainActivity.this.finish(); } catch (Exception ignored) {}
+                                  }
+                              });
+                          } catch (Exception ignored) {}
+                      }
+                  }, "LynxosBack");
                   if (savedInstanceState != null) {
                       webView.restoreState(savedInstanceState);
                   } else {
@@ -399,12 +416,36 @@ jobs:
                   }
               }
 
+              private void defaultBackPressed() {
+                  super.onBackPressed();
+              }
+
               @Override
               public void onBackPressed() {
-                  if (webView != null && webView.canGoBack()) {
-                      webView.goBack();
-                  } else {
-                      super.onBackPressed();
+                  // Let the page handle back navigation first (popups, chat room, app sections).
+                  // The page calls LynxosBack.exitApp() only when there is nowhere left to go.
+                  if (webView == null) {
+                      defaultBackPressed();
+                      return;
+                  }
+                  try {
+                      webView.evaluateJavascript(
+                          "(function(){try{return (typeof window.__lynxosOnBack==='function')?'1':'0';}catch(e){return '0';}})()",
+                          value -> {
+                              try {
+                                  if ("\"1\"".equals(value)) {
+                                      webView.evaluateJavascript("window.__lynxosOnBack()", null);
+                                  } else if (webView.canGoBack()) {
+                                      webView.goBack();
+                                  } else {
+                                      MainActivity.this.defaultBackPressed();
+                                  }
+                              } catch (Exception ignored) {
+                                  try { MainActivity.this.defaultBackPressed(); } catch (Exception ignored2) {}
+                              }
+                          });
+                  } catch (Exception e) {
+                      defaultBackPressed();
                   }
               }
 
