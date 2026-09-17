@@ -164,6 +164,8 @@ jobs:
           import android.provider.Settings;
           import android.speech.tts.TextToSpeech;
           import android.webkit.JavascriptInterface;
+          import android.webkit.ValueCallback;
+          import android.webkit.WebChromeClient;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
           import java.util.Locale;
@@ -175,6 +177,8 @@ jobs:
               private String pendingTts = null;
               private boolean pageLoaded = false;
               private String pendingAuthUrl = null;
+              private ValueCallback<Uri[]> filePathCallback = null;
+              private static final int FILE_CHOOSER_REQUEST = 1001;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -198,6 +202,23 @@ jobs:
                       }
                   });
                   final Activity self = this;
+                  webView.setWebChromeClient(new WebChromeClient() {
+                      @Override
+                      public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                          if (filePathCallback != null) { filePathCallback.onReceiveValue(null); }
+                          filePathCallback = callback;
+                          Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                          intent.addCategory(Intent.CATEGORY_OPENABLE);
+                          intent.setType("image/*");
+                          try {
+                              self.startActivityForResult(Intent.createChooser(intent, "Choose a photo"), FILE_CHOOSER_REQUEST);
+                          } catch (Exception e) {
+                              filePathCallback = null;
+                              return false;
+                          }
+                          return true;
+                      }
+                  });
                   webView.addJavascriptInterface(new Object() {
                       @JavascriptInterface
                       public void set(String key, String value) {
@@ -307,6 +328,20 @@ jobs:
                   handleAuthIntent(getIntent());
               }
 
+              @Override
+              protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+                  super.onActivityResult(requestCode, resultCode, data);
+                  if (requestCode == FILE_CHOOSER_REQUEST) {
+                      if (filePathCallback == null) return;
+                      Uri[] results = null;
+                      if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                          results = new Uri[]{ data.getData() };
+                      }
+                      filePathCallback.onReceiveValue(results);
+                      filePathCallback = null;
+                  }
+              }
+
               private void handleAuthIntent(Intent intent) {
                   try {
                       if (intent == null || intent.getData() == null) return;
@@ -410,211 +445,4 @@ jobs:
               public static void schedule(Context ctx) {
                   try {
                       AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
-                      if (am == null) return;
-                      Intent i = new Intent(ctx, MessageCheckReceiver.class);
-                      PendingIntent pi = PendingIntent.getBroadcast(ctx, 0, i,
-                              PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                      long trigger = System.currentTimeMillis() + INTERVAL_MS;
-                      am.setInexactRepeating(AlarmManager.RTC_WAKEUP, trigger, INTERVAL_MS, pi);
-                  } catch (Exception ignored) {}
-              }
-
-              @Override
-              public void onReceive(Context context, Intent intent) {
-                  final PendingResult pr = goAsync();
-                  final Context appCtx = context.getApplicationContext();
-                  new Thread(new Runnable() {
-                      @Override
-                      public void run() {
-                          try {
-                              doCheck(appCtx);
-                          } catch (Exception ignored) {
-                          } finally {
-                              try { schedule(appCtx); } catch (Exception ignored) {}
-                              pr.finish();
-                          }
-                      }
-                  }).start();
-              }
-
-              private void doCheck(Context ctx) {
-                  SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-                  String userId = prefs.getString("mh_user_id", "");
-                  String refreshToken = prefs.getString("mh_refresh_token", "");
-                  if (userId == null || userId.length() == 0) return;
-                  if (refreshToken == null || refreshToken.length() == 0) return;
-                  String accessToken = refreshAccessToken(refreshToken);
-                  if (accessToken == null) return;
-                  List<String[]> unread = fetchUnread(userId, accessToken);
-                  String maxSeen = prefs.getString("mh_max_notified_at", "");
-                  if (maxSeen == null) maxSeen = "";
-                  String newMax = maxSeen;
-                  int fresh = 0;
-                  boolean freshDm = false;
-                  for (int i = 0; i < unread.size(); i++) {
-                      String ca = unread.get(i)[0];
-                      String type = unread.get(i)[1];
-                      if (ca == null || ca.length() == 0) continue;
-                      if (newMax.length() == 0 || ca.compareTo(newMax) > 0) newMax = ca;
-                      if (maxSeen.length() > 0 && ca.compareTo(maxSeen) > 0) {
-                          fresh++;
-                          if ("dm".equals(type)) freshDm = true;
-                      }
-                  }
-                  if (newMax.length() > 0) prefs.edit().putString("mh_max_notified_at", newMax).apply();
-                  if (fresh == 1) {
-                      notifyNew(ctx, "New activity in Metalhead Social",
-                              freshDm ? "New message - tap to open" : "1 new alert - tap to open");
-                  } else if (fresh > 1) {
-                      notifyNew(ctx, "New activity in Metalhead Social", fresh + " new alerts - tap to open");
-                  }
-              }
-
-              private String refreshAccessToken(String refreshToken) {
-                  HttpURLConnection c = null;
-                  try {
-                      URL url = new URL(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token");
-                      c = (HttpURLConnection) url.openConnection();
-                      c.setConnectTimeout(20000);
-                      c.setReadTimeout(20000);
-                      c.setRequestMethod("POST");
-                      c.setDoOutput(true);
-                      c.setRequestProperty("apikey", SUPABASE_ANON);
-                      c.setRequestProperty("Content-Type", "application/json");
-                      String safe = refreshToken.replace("\\", "\\\\").replace("\"", "\\\"");
-                      byte[] body = ("{\"refresh_token\":\"" + safe + "\"}").getBytes("UTF-8");
-                      OutputStream os = c.getOutputStream();
-                      os.write(body);
-                      os.flush();
-                      os.close();
-                      if (c.getResponseCode() != 200) return null;
-                      String resp = readAll(c.getInputStream());
-                      JSONObject d = new JSONObject(resp);
-                      String at = d.optString("access_token", "");
-                      return at.length() > 0 ? at : null;
-                  } catch (Exception e) {
-                      return null;
-                  } finally {
-                      if (c != null) c.disconnect();
-                  }
-              }
-
-              private List<String[]> fetchUnread(String userId, String accessToken) {
-                  List<String[]> out = new ArrayList<String[]>();
-                  HttpURLConnection c = null;
-                  try {
-                      String q = SUPABASE_URL + "/rest/v1/notifications?user_id=eq." + URLEncoder.encode(userId, "UTF-8")
-                              + "&read=eq.false&select=id,created_at,type&order=created_at.desc&limit=50";
-                      URL url = new URL(q);
-                      c = (HttpURLConnection) url.openConnection();
-                      c.setConnectTimeout(20000);
-                      c.setReadTimeout(20000);
-                      c.setRequestProperty("apikey", SUPABASE_ANON);
-                      c.setRequestProperty("Authorization", "Bearer " + accessToken);
-                      if (c.getResponseCode() != 200) return out;
-                      JSONArray arr = new JSONArray(readAll(c.getInputStream()));
-                      for (int i = 0; i < arr.length(); i++) {
-                          JSONObject o = arr.getJSONObject(i);
-                          out.add(new String[]{ o.optString("created_at", ""), o.optString("type", "") });
-                      }
-                  } catch (Exception ignored) {
-                  } finally {
-                      if (c != null) c.disconnect();
-                  }
-                  return out;
-              }
-
-              private String readAll(InputStream in) throws Exception {
-                  BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
-                  StringBuilder sb = new StringBuilder();
-                  String line;
-                  while ((line = br.readLine()) != null) sb.append(line);
-                  br.close();
-                  return sb.toString();
-              }
-
-              private void notifyNew(Context ctx, String title, String text) {
-                  try {
-                      NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
-                      if (nm == null) return;
-                      if (Build.VERSION.SDK_INT >= 26) {
-                          NotificationChannel ch = new NotificationChannel(CHANNEL_ID, "New activity", NotificationManager.IMPORTANCE_DEFAULT);
-                          nm.createNotificationChannel(ch);
-                      }
-                      Intent open = new Intent(ctx, MainActivity.class);
-                      open.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                      PendingIntent pi = PendingIntent.getActivity(ctx, 0, open,
-                              PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                      Notification.Builder nb = Build.VERSION.SDK_INT >= 26
-                              ? new Notification.Builder(ctx, CHANNEL_ID)
-                              : new Notification.Builder(ctx);
-                      nb.setContentTitle(title)
-                        .setContentText(text)
-                        .setSmallIcon(android.R.drawable.ic_dialog_info)
-                        .setContentIntent(pi)
-                        .setAutoCancel(true);
-                      nm.notify(2001, nb.build());
-                  } catch (Exception ignored) {}
-              }
-          }
-          EOF
-
-          cat > app/src/main/java/com/metalheadsocial/app/BootReceiver.java <<'EOF'
-          package com.metalheadsocial.app;
-
-          import android.content.BroadcastReceiver;
-          import android.content.Context;
-          import android.content.Intent;
-
-          public class BootReceiver extends BroadcastReceiver {
-              @Override
-              public void onReceive(Context context, Intent intent) {
-                  if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
-                      MessageCheckReceiver.schedule(context.getApplicationContext());
-                  }
-              }
-          }
-          EOF
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 8.7
-
-      - name: Build release APK (unsigned)
-        run: gradle :app:assembleRelease
-
-      - name: Sign release APK with the Lynxos key
-        run: |
-          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          APKSIGNER="$ANDROID_HOME/build-tools/34.0.0/apksigner"
-          KEY_B64='${{ secrets.KEYSTORE_BASE64 }}'
-          echo "DIAG: KEYSTORE_BASE64 length = ${#KEY_B64} chars"
-          echo "$KEY_B64" | tr -d '[:space:]' | base64 -d > /tmp/lynxos-release.p12
-          if [ ! -s /tmp/lynxos-release.p12 ]; then
-            echo "ERROR: signing key secret is empty or did not decode. Re-add the KEYSTORE_BASE64 secret."
-            exit 1
-          fi
-          "$APKSIGNER" sign --ks /tmp/lynxos-release.p12 --ks-type PKCS12 \
-            --ks-pass "pass:${{ secrets.KEYSTORE_PASSWORD }}" \
-            --key-pass "pass:${{ secrets.KEY_PASSWORD }}" \
-            --ks-key-alias "${{ secrets.KEY_ALIAS }}" \
-            --out app/build/outputs/apk/release/app-release.apk \
-            app/build/outputs/apk/release/app-release-unsigned.apk
-          rm -f /tmp/lynxos-release.p12
-          "$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk | head -3
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: metalhead-social-apk
-          path: app/build/outputs/apk/release/app-release.apk
-
-      - name: Publish GitHub release
-        if: github.event_name == 'workflow_dispatch'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ env.APP_VERSION_NAME }}+${{ env.APP_VERSION_CODE }}
-          name: v${{ env.APP_VERSION_NAME }}+${{ env.APP_VERSION_CODE }}
-          body: ${{ env.APP_RELEASE_NOTES }}
-          files: app/build/outputs/apk/release/app-release.apk
+                      
