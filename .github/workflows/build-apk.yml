@@ -164,9 +164,11 @@ jobs:
           package com.metalheadsocial.app;
 
           import android.app.Activity;
+          import android.app.DownloadManager;
           import android.content.Intent;
           import android.net.Uri;
           import android.os.Bundle;
+          import android.os.Environment;
           import android.provider.Settings;
           import android.speech.tts.TextToSpeech;
           import android.webkit.JavascriptInterface;
@@ -352,6 +354,26 @@ jobs:
                           });
                       }
                   }, "LynxosShare");
+                  webView.addJavascriptInterface(new Object() {
+                      @JavascriptInterface
+                      public void download(final String url, final String fileName) {
+                          self.runOnUiThread(new Runnable() {
+                              @Override
+                              public void run() {
+                                  try {
+                                      DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                                      DownloadManager.Request req = new DownloadManager.Request(Uri.parse(url));
+                                      req.setTitle(fileName);
+                                      req.setDescription("Downloading " + fileName);
+                                      req.setMimeType("application/vnd.android.package-archive");
+                                      req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                                      req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
+                                      dm.enqueue(req);
+                                  } catch (Exception ignored) {}
+                              }
+                          });
+                      }
+                  }, "LynxosDownloader");
                   webView.addJavascriptInterface(new Object() {
                       @JavascriptInterface
                       public void exitApp() {
