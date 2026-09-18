@@ -206,6 +206,8 @@ jobs:
                   webView.getSettings().setJavaScriptEnabled(true);
                   webView.getSettings().setDomStorageEnabled(true);
                   webView.getSettings().setAllowFileAccess(true);
+                  webView.getSettings().setAllowFileAccessFromFileURLs(true);
+                  webView.getSettings().setAllowUniversalAccessFromFileURLs(true);
                   webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
                   webView.setWebViewClient(new WebViewClient() {
                       @Override
