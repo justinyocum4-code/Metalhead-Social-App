@@ -337,6 +337,23 @@ jobs:
                   }, "LynxosBrowser");
                   webView.addJavascriptInterface(new Object() {
                       @JavascriptInterface
+                      public void share(final String title, final String text, final String url) {
+                          self.runOnUiThread(new Runnable() {
+                              @Override
+                              public void run() {
+                                  try {
+                                      Intent send = new Intent(Intent.ACTION_SEND);
+                                      send.setType("text/plain");
+                                      send.putExtra(Intent.EXTRA_SUBJECT, title);
+                                      send.putExtra(Intent.EXTRA_TEXT, text + "\n" + url);
+                                      startActivity(Intent.createChooser(send, "Share Metalhead Social"));
+                                  } catch (Exception ignored) {}
+                              }
+                          });
+                      }
+                  }, "LynxosShare");
+                  webView.addJavascriptInterface(new Object() {
+                      @JavascriptInterface
                       public void exitApp() {
                           try {
                               MainActivity.this.runOnUiThread(new Runnable() {
