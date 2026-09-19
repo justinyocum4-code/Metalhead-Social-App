@@ -181,7 +181,7 @@
 </head>
 <body id="metalheads-app">
 <header>
-  <h1>🤘 Metalheads <small>v1.55</small></h1>
+  <h1>🤘 Metalheads <small>v1.56</small></h1>
 </header>
 <main>
   <div id="status" class="sr" role="status" aria-live="polite"></div>
@@ -519,7 +519,7 @@
   </section>
   <section id="profileView" hidden>
     <h2>Your profile</h2>
-    <p style="color:var(--muted)">Metalhead Social v1.55</p>
+    <p style="color:var(--muted)">Metalhead Social v1.56</p>
     <div id="myStreak" style="margin:8px 0"></div>
     <div id="myNowPlaying" style="margin:8px 0"></div>
     <h2 style="margin-top:16px">Your badges</h2>
@@ -2507,7 +2507,7 @@ $("newInviteBtn").addEventListener("click", function(){
 var APP_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Metalhead-Social-App/releases/latest/download/app-release.apk";
 var STORE_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Lynxos-app-store/releases/latest/download/app-release.apk";
 /* ----- in-app updater: BUMP APP_VERSION_CODE every release or the banner never fires ----- */
-var APP_VERSION_CODE = 59;
+var APP_VERSION_CODE = 60;
 var updateApkUrl = null;
 function checkForAppUpdate(){
   var banner = document.getElementById("updateBanner"); if(!banner) return;
@@ -6043,37 +6043,25 @@ function aiVoiceFor(){
 /* Speak through the app's own voice engine when present (reliable in the
    APK). When the bridge supports it, the legend's pitch/rate rides along;
    if that call ever fails, plain speech is used as a fallback. */
-/* DIAGNOSTIC (v1.55): the Read button runs a voice-engine self-test and
-   reports each step through TalkBack. This replaces normal speech until the
-   silent-voice bug is found. */
+/* DIAGNOSTIC (v1.56): the Read button speaks ONE test line, then reports the
+   native utterance event. This tells us whether the engine actually started
+   rendering audio (start), finished (done), errored (error:code), or dropped
+   the utterance silently (none). */
 function aiNativeSpeak(text, voice){
   try{
-    var parts = [];
-    parts.push("bridge " + (window.LynxosTts ? "yes" : "no"));
-    if(window.LynxosTts){
-      try{ parts.push("speakVoice is " + typeof LynxosTts.speakVoice); }
-      catch(e){ parts.push("speakVoice check threw"); }
-      try{ parts.push("speak is " + typeof LynxosTts.speak); }
-      catch(e){ parts.push("speak check threw"); }
-    }
-    announce("Voice check. " + parts.join(". ") + ".");
+    announce("Voice test starting. Listen for the app voice.");
     if(window.LynxosTts && typeof LynxosTts.speak === "function"){
-      var r1;
-      try{ r1 = LynxosTts.speak("Hello. This is test one."); }
-      catch(e){ r1 = "threw"; }
-      announce("Test one returned " + typeof r1 + " " + r1 + ".");
-    }
-    if(window.LynxosTts && typeof LynxosTts.speakVoice === "function"){
-      var r2;
-      try{ r2 = LynxosTts.speakVoice("Hello. This is test two.", 1.0, 1.0); }
-      catch(e){ r2 = "threw"; }
-      announce("Test two returned " + typeof r2 + " " + r2 + ".");
-    }
-    if(window.LynxosTts && typeof LynxosTts.speak === "function" && text){
-      var r3;
-      try{ r3 = LynxosTts.speak(String(text).slice(0, 200)); }
-      catch(e){ r3 = "threw"; }
-      announce("Reply test returned " + typeof r3 + " " + r3 + ".");
+      var r;
+      try{ r = LynxosTts.speak("Hello. This is a voice test from Metalhead Social."); }
+      catch(e){ r = "threw"; }
+      announce("Speak returned " + typeof r + " " + r + ". Waiting four seconds.");
+      setTimeout(function(){
+        var ev = "unknown";
+        try{ ev = LynxosTts.ttsUtterance(); }catch(e2){ ev = "utterance check threw"; }
+        announce("Utterance event: " + ev + ".");
+      }, 4000);
+    }else{
+      announce("Voice bridge missing.");
     }
   }catch(e){ announce("Voice check failed."); }
   return true;
