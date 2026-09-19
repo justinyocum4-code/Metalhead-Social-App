@@ -6040,11 +6040,13 @@ function aiFinish(personaId, reply, personaName){
 var aiSpeakingBtn = null;
 function aiStopSpeaking(){
   try { if("speechSynthesis" in window) speechSynthesis.cancel(); } catch(e){}
+  try { if(window.LynxosTts){ if(LynxosTts.stop) LynxosTts.stop(); else if(LynxosTts.cancel) LynxosTts.cancel(); } } catch(e){}
   if(aiSpeakingBtn){ aiSpeakingBtn.setAttribute("aria-pressed", "false"); aiSpeakingBtn = null; }
 }
-/* AI Metal Legends voice replies (v1.50): each legend gets a distinct character
-   (pitch/speed) on the phone's own narrator voice. These are NOT the real
-   musicians' voices — cloning a real person's voice would be impersonation. */
+/* AI Metal Legends voice replies (v1.50): on the web each legend gets a distinct
+   character (pitch/speed) on the phone's own narrator voice; in the installed app
+   they read in the phone's default voice through the native bridge. These are NOT
+   the real musicians' voices — cloning a real person's voice would be impersonation. */
 var AI_VOICES = {
   ozzy:      { pitch: 1.15, rate: 1.00 },
   hetfield:  { pitch: 0.80, rate: 0.95 },
@@ -6057,26 +6059,41 @@ function aiVoiceFor(){
   var id = (aiPersona && aiPersona.id) || "";
   return AI_VOICES[id] || { pitch: 1, rate: 1 };
 }
+/* Speak through the app's own voice engine when present (reliable in the
+   APK). The per-legend pitch/rate only applies on the web fallback path. */
+function aiNativeSpeak(text){
+  try{ if(window.LynxosTts && LynxosTts.speak){ LynxosTts.speak(String(text)); return true; } }catch(e){}
+  return false;
+}
 function aiSpeakReply(text){
-  if(!("speechSynthesis" in window) || !text) return;
+  if(!text) return;
   aiStopSpeaking();
+  if(aiNativeSpeak(text)) return;
+  if(!("speechSynthesis" in window)) return;
   var v = aiVoiceFor();
   var u = new SpeechSynthesisUtterance(String(text));
   u.pitch = v.pitch; u.rate = v.rate;
   try{ speechSynthesis.speak(u); }catch(e){}
 }
 function aiToggleSpeak(text, btn){
-  if(!("speechSynthesis" in window)){ say("Speech is not available on this device."); return; }
   if(aiSpeakingBtn === btn){ aiStopSpeaking(); return; }
   aiStopSpeaking();
+  aiSpeakingBtn = btn;
+  btn.setAttribute("aria-pressed", "true");
+  var releaseBtn = function(){ if(aiSpeakingBtn === btn){ btn.setAttribute("aria-pressed", "false"); aiSpeakingBtn = null; } };
+  if(aiNativeSpeak(text)){
+    /* The native bridge reports no "finished" event, so release the button
+       after a rough speaking-time estimate. */
+    setTimeout(releaseBtn, Math.min(90000, Math.max(3000, String(text).length * 70)));
+    return;
+  }
+  if(!("speechSynthesis" in window)){ releaseBtn(); say("Speech is not available on this device."); return; }
   var u = new SpeechSynthesisUtterance(text);
   var vv = aiVoiceFor();
   u.pitch = vv.pitch; u.rate = vv.rate;
-  aiSpeakingBtn = btn;
-  btn.setAttribute("aria-pressed", "true");
-  u.onend = function(){ if(aiSpeakingBtn === btn){ btn.setAttribute("aria-pressed", "false"); aiSpeakingBtn = null; } };
-  u.onerror = function(){ if(aiSpeakingBtn === btn){ btn.setAttribute("aria-pressed", "false"); aiSpeakingBtn = null; } };
-  speechSynthesis.speak(u);
+  u.onend = releaseBtn;
+  u.onerror = releaseBtn;
+  try{ speechSynthesis.speak(u); }catch(e){ releaseBtn(); }
 }
 $("aiSendBtn").addEventListener("click", aiSend);
 /* voice-reply autoplay toggle (v1.50) */
