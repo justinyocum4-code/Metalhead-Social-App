@@ -6056,7 +6056,8 @@ function aiNativeSpeak(text, voice){
 }
 function aiSpeakReply(text){
   if(!text) return;
-  aiStopSpeaking();
+  /* No stop() before speaking: QUEUE_FLUSH already cuts any current speech,
+     and stop-then-speak back-to-back can swallow the new utterance. */
   if(aiNativeSpeak(text, aiVoiceFor())) return;
   if(!("speechSynthesis" in window)) return;
   var v = aiVoiceFor();
@@ -6066,7 +6067,10 @@ function aiSpeakReply(text){
 }
 function aiToggleSpeak(text, btn){
   if(aiSpeakingBtn === btn){ aiStopSpeaking(); return; }
-  aiStopSpeaking();
+  /* Reset the previous button without a native stop(): QUEUE_FLUSH cuts the
+     old speech on the next speak, and stop-then-speak back-to-back can
+     swallow the new utterance. */
+  if(aiSpeakingBtn){ aiSpeakingBtn.setAttribute("aria-pressed", "false"); aiSpeakingBtn = null; }
   aiSpeakingBtn = btn;
   btn.setAttribute("aria-pressed", "true");
   var releaseBtn = function(){ if(aiSpeakingBtn === btn){ btn.setAttribute("aria-pressed", "false"); aiSpeakingBtn = null; } };
