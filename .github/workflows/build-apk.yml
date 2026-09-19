@@ -128,6 +128,11 @@ jobs:
               <uses-permission android:name="android.permission.RECORD_AUDIO" />
               <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
               <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+              <queries>
+                  <intent>
+                      <action android:name="android.intent.action.TTS_SERVICE" />
+                  </intent>
+              </queries>
               <application
                   android:label="Metalhead Social"
                   android:theme="@android:style/Theme.Material.Light.NoActionBar">
@@ -192,7 +197,9 @@ jobs:
               private TextToSpeech tts;
               private boolean ttsReady = false;
               private String pendingTts = null;
-              private String lastUtteranceEvent = "none";
+              private volatile String lastUtteranceEvent = "none";
+              private volatile String ttsEngineUsed = "default";
+              private String nextUtteranceId() { return "metalhead-" + System.nanoTime(); }
               private boolean pageLoaded = false;
               private String pendingAuthUrl = null;
               private ValueCallback<Uri[]> filePathCallback = null;
@@ -271,7 +278,7 @@ jobs:
                           } catch (Exception ignored) {}
                       }
                   }, "LynxosStore");
-                  tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
+                  final TextToSpeech.OnInitListener ttsInitListener = new TextToSpeech.OnInitListener() {
                       @Override
                       public void onInit(int status) {
                           if (status == TextToSpeech.SUCCESS) {
@@ -285,7 +292,7 @@ jobs:
                                   try {
                                       if (android.os.Build.VERSION.SDK_INT >= 21) {
                                           tts.setAudioAttributes(new AudioAttributes.Builder()
-                                              .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                                              .setUsage(AudioAttributes.USAGE_MEDIA)
                                               .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                                               .build());
                                       }
@@ -302,12 +309,37 @@ jobs:
                                   String text = pendingTts;
                                   pendingTts = null;
                                   try {
-                                      tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "metalhead-reader");
+                                      tts.speak(text, TextToSpeech.QUEUE_FLUSH, new Bundle(), nextUtteranceId());
                                   } catch (Exception ignored) {}
                               }
                           }
                       }
-                  });
+                  };
+                  String ttsEnginePkg = null;
+                  try {
+                      android.content.Intent ttsSvc = new android.content.Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE);
+                      java.util.List<android.content.pm.ResolveInfo> ttsEngines = getPackageManager().queryIntentServices(ttsSvc, 0);
+                      if (ttsEngines != null) {
+                          for (android.content.pm.ResolveInfo ri : ttsEngines) {
+                              if (ri.serviceInfo != null && "com.google.android.tts".equals(ri.serviceInfo.packageName)) {
+                                  ttsEnginePkg = "com.google.android.tts";
+                                  break;
+                              }
+                          }
+                      }
+                  } catch (Exception ignored) {}
+                  try {
+                      if (ttsEnginePkg != null) {
+                          ttsEngineUsed = ttsEnginePkg;
+                          tts = new TextToSpeech(this, ttsInitListener, ttsEnginePkg);
+                      } else {
+                          ttsEngineUsed = "default";
+                          tts = new TextToSpeech(this, ttsInitListener);
+                      }
+                  } catch (Exception e) {
+                      ttsEngineUsed = "default";
+                      tts = new TextToSpeech(this, ttsInitListener);
+                  }
                   webView.addJavascriptInterface(new Object() {
                       @JavascriptInterface
                       public int speak(String text) {
@@ -324,6 +356,14 @@ jobs:
                       @JavascriptInterface
                       public String ttsUtterance() {
                           return lastUtteranceEvent;
+                      }
+                      @JavascriptInterface
+                      public boolean ttsSpeaking() {
+                          try { return tts != null && tts.isSpeaking(); } catch (Exception e) { return false; }
+                      }
+                      @JavascriptInterface
+                      public String ttsEngine() {
+                          return ttsEngineUsed;
                       }
                       @JavascriptInterface
                       private int doSpeak(String text, float pitch, float rate) {
@@ -346,12 +386,12 @@ jobs:
                                           char c = remaining.charAt(i);
                                           if (c == '.' || c == '!' || c == '?' || c == 10) { cut = i + 1; break; }
                                       }
-                                      int r = tts.speak(remaining.substring(0, cut), first ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD, null, "metalhead-reader");
+                                      int r = tts.speak(remaining.substring(0, cut), first ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD, new Bundle(), nextUtteranceId());
                                       if (r != TextToSpeech.SUCCESS) res = r;
                                       remaining = remaining.substring(cut);
                                       first = false;
                                   }
-                                  int r = tts.speak(remaining, first ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD, null, "metalhead-reader");
+                                  int r = tts.speak(remaining, first ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD, new Bundle(), nextUtteranceId());
                                   if (r != TextToSpeech.SUCCESS) res = r;
                                   return res;
                               } catch (Exception ignored) { return -1; }
