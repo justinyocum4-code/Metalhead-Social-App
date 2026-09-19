@@ -6061,11 +6061,13 @@ function aiVoiceFor(){
 }
 /* Speak through the app's own voice engine when present (reliable in the
    APK). When the bridge supports it, the legend's pitch/rate rides along;
-   otherwise the phone's default voice reads. */
+   if that call ever fails, plain speech is used as a fallback. */
 function aiNativeSpeak(text, voice){
   try{
     if(window.LynxosTts){
-      if(voice && LynxosTts.speakVoice){ LynxosTts.speakVoice(String(text), voice.pitch, voice.rate); return true; }
+      if(voice){
+        try{ if(LynxosTts.speakVoice){ LynxosTts.speakVoice(String(text), voice.pitch, voice.rate); return true; } }catch(e2){}
+      }
       if(LynxosTts.speak){ LynxosTts.speak(String(text)); return true; }
     }
   }catch(e){}
