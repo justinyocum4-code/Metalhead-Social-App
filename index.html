@@ -181,7 +181,7 @@
 </head>
 <body id="metalheads-app">
 <header>
-  <h1>🤘 Metalheads <small>v1.50</small></h1>
+  <h1>🤘 Metalheads <small>v1.51</small></h1>
   <button class="icon-btn" id="voiceBtn" aria-pressed="false" aria-label="Voice announcements off">🔇 Voice</button>
 </header>
 <main>
@@ -520,7 +520,7 @@
   </section>
   <section id="profileView" hidden>
     <h2>Your profile</h2>
-    <p style="color:var(--muted)">Metalhead Social v1.50</p>
+    <p style="color:var(--muted)">Metalhead Social v1.51</p>
     <div id="myStreak" style="margin:8px 0"></div>
     <div id="myNowPlaying" style="margin:8px 0"></div>
     <h2 style="margin-top:16px">Your badges</h2>
@@ -2526,7 +2526,7 @@ $("newInviteBtn").addEventListener("click", function(){
 var APP_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Metalhead-Social-App/releases/latest/download/app-release.apk";
 var STORE_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Lynxos-app-store/releases/latest/download/app-release.apk";
 /* ----- in-app updater: BUMP APP_VERSION_CODE every release or the banner never fires ----- */
-var APP_VERSION_CODE = 54;
+var APP_VERSION_CODE = 55;
 var updateApkUrl = null;
 function checkForAppUpdate(){
   var banner = document.getElementById("updateBanner"); if(!banner) return;
@@ -6043,10 +6043,10 @@ function aiStopSpeaking(){
   try { if(window.LynxosTts){ if(LynxosTts.stop) LynxosTts.stop(); else if(LynxosTts.cancel) LynxosTts.cancel(); } } catch(e){}
   if(aiSpeakingBtn){ aiSpeakingBtn.setAttribute("aria-pressed", "false"); aiSpeakingBtn = null; }
 }
-/* AI Metal Legends voice replies (v1.50): on the web each legend gets a distinct
-   character (pitch/speed) on the phone's own narrator voice; in the installed app
-   they read in the phone's default voice through the native bridge. These are NOT
-   the real musicians' voices — cloning a real person's voice would be impersonation. */
+/* AI Metal Legends voice replies (v1.50): each legend gets a distinct character
+   (pitch/speed) on the phone's own narrator voice, in the app and on the web.
+   These are NOT the real musicians' voices — cloning a real person's voice
+   would be impersonation. */
 var AI_VOICES = {
   ozzy:      { pitch: 1.15, rate: 1.00 },
   hetfield:  { pitch: 0.80, rate: 0.95 },
@@ -6060,15 +6060,21 @@ function aiVoiceFor(){
   return AI_VOICES[id] || { pitch: 1, rate: 1 };
 }
 /* Speak through the app's own voice engine when present (reliable in the
-   APK). The per-legend pitch/rate only applies on the web fallback path. */
-function aiNativeSpeak(text){
-  try{ if(window.LynxosTts && LynxosTts.speak){ LynxosTts.speak(String(text)); return true; } }catch(e){}
+   APK). When the bridge supports it, the legend's pitch/rate rides along;
+   otherwise the phone's default voice reads. */
+function aiNativeSpeak(text, voice){
+  try{
+    if(window.LynxosTts){
+      if(voice && LynxosTts.speakVoice){ LynxosTts.speakVoice(String(text), voice.pitch, voice.rate); return true; }
+      if(LynxosTts.speak){ LynxosTts.speak(String(text)); return true; }
+    }
+  }catch(e){}
   return false;
 }
 function aiSpeakReply(text){
   if(!text) return;
   aiStopSpeaking();
-  if(aiNativeSpeak(text)) return;
+  if(aiNativeSpeak(text, aiVoiceFor())) return;
   if(!("speechSynthesis" in window)) return;
   var v = aiVoiceFor();
   var u = new SpeechSynthesisUtterance(String(text));
@@ -6081,7 +6087,7 @@ function aiToggleSpeak(text, btn){
   aiSpeakingBtn = btn;
   btn.setAttribute("aria-pressed", "true");
   var releaseBtn = function(){ if(aiSpeakingBtn === btn){ btn.setAttribute("aria-pressed", "false"); aiSpeakingBtn = null; } };
-  if(aiNativeSpeak(text)){
+  if(aiNativeSpeak(text, aiVoiceFor())){
     /* The native bridge reports no "finished" event, so release the button
        after a rough speaking-time estimate. */
     setTimeout(releaseBtn, Math.min(90000, Math.max(3000, String(text).length * 70)));
