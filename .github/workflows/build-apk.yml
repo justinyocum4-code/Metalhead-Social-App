@@ -290,19 +290,20 @@ jobs:
                   });
                   webView.addJavascriptInterface(new Object() {
                       @JavascriptInterface
-                      public void speak(String text) {
-                          doSpeak(text, 1.0f, 1.0f);
+                      public int speak(String text) {
+                          return doSpeak(text, 1.0f, 1.0f);
                       }
                       @JavascriptInterface
-                      public void speakVoice(String text, double pitch, double rate) {
+                      public int speakVoice(String text, double pitch, double rate) {
                           float p = (float) pitch;
                           float r = (float) rate;
                           if (p <= 0) p = 1.0f;
                           if (r <= 0) r = 1.0f;
-                          doSpeak(text, p, r);
+                          return doSpeak(text, p, r);
                       }
-                      private void doSpeak(String text, float pitch, float rate) {
-                          if (text == null) return;
+                      @JavascriptInterface
+                      private int doSpeak(String text, float pitch, float rate) {
+                          if (text == null) return -1;
                           try {
                               if (tts != null) {
                                   try { tts.setPitch(pitch); } catch (Exception ignored) {}
@@ -311,9 +312,26 @@ jobs:
                           } catch (Exception ignored) {}
                           if (ttsReady && tts != null) {
                               try {
-                                  tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "metalhead-reader");
-                              } catch (Exception ignored) {}
-                          } else { pendingTts = text; }
+                                  int res = TextToSpeech.SUCCESS;
+                                  String remaining = text;
+                                  boolean first = true;
+                                  while (remaining.length() > 3500) {
+                                      int cut = 3500;
+                                      for (int i = 3500; i > 2500; i--) {
+                                          char c = remaining.charAt(i);
+                                          if (c == '.' || c == '!' || c == '?' || c == 10) { cut = i + 1; break; }
+
+                                      }
+                                      int r = tts.speak(remaining.substring(0, cut), first ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD, null, "metalhead-reader");
+                                      if (r != TextToSpeech.SUCCESS) res = r;
+                                      remaining = remaining.substring(cut);
+                                      first = false;
+                                  }
+                                  int r = tts.speak(remaining, first ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD, null, "metalhead-reader");
+                                  if (r != TextToSpeech.SUCCESS) res = r;
+                                  return res;
+                              } catch (Exception ignored) { return -1; }
+                          } else { pendingTts = text; return -2; }
                       }
                       @JavascriptInterface
                       public void stop() {
