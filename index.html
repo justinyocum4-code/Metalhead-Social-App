@@ -184,7 +184,7 @@
 </head>
 <body id="metalheads-app">
 <header>
-  <h1>🤘 Metalheads <small>v1.58</small></h1>
+  <h1>🤘 Metalheads <small>v1.59</small></h1>
 </header>
 <main>
   <div id="status" class="sr" role="status" aria-live="polite"></div>
@@ -522,7 +522,7 @@
   </section>
   <section id="profileView" hidden>
     <h2>Your profile</h2>
-    <p style="color:var(--muted)">Metalhead Social v1.58</p>
+    <p style="color:var(--muted)">Metalhead Social v1.59</p>
     <div id="myStreak" style="margin:8px 0"></div>
     <div id="myNowPlaying" style="margin:8px 0"></div>
     <h2 style="margin-top:16px">Your badges</h2>
@@ -2510,7 +2510,7 @@ $("newInviteBtn").addEventListener("click", function(){
 var APP_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Metalhead-Social-App/releases/latest/download/app-release.apk";
 var STORE_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Lynxos-app-store/releases/latest/download/app-release.apk";
 /* ----- in-app updater: BUMP APP_VERSION_CODE every release or the banner never fires ----- */
-var APP_VERSION_CODE = 62;
+var APP_VERSION_CODE = 63;
 var updateApkUrl = null;
 function checkForAppUpdate(){
   var banner = document.getElementById("updateBanner"); if(!banner) return;
@@ -5066,6 +5066,20 @@ function openGig(id){
 }
 
 /* ----- Desert Island Five ----- */
+/* v1.59: each member picks whether their five are albums, artists, or songs */
+var ISLAND_KINDS = [["albums","Albums"],["artists","Artists"],["songs","Songs"]];
+function islandKindOf(di){ var k = di && di.kind; return (k === "artists" || k === "songs") ? k : "albums"; }
+function islandKindWord(kind){ return kind === "artists" ? "artists" : kind === "songs" ? "songs" : "albums"; }
+function islandKindDesc(kind){
+  if(kind === "artists") return "The five artists you'd take if you were stranded. Shown on your profile.";
+  if(kind === "songs") return "The five songs you'd take if you were stranded. Shown on your profile.";
+  return "The five albums you'd take if you were stranded. Shown on your profile.";
+}
+function islandSlotPlaceholder(kind){
+  if(kind === "artists") return "Artist name";
+  if(kind === "songs") return "Artist \u2014 Song";
+  return "Artist \u2014 Album";
+}
 var islandSlots = ["slot1", "slot2", "slot3", "slot4", "slot5"];
 function islandListHtml(di){
   var h = "<ol class='content'>";
@@ -5076,10 +5090,14 @@ function clubIsland(){
   var box = $("clubContent");
   sb.from("desert_island").select("*").eq("user_id", state.user.id).maybeSingle().then(function(mr){
     var mine = mr.data || {};
+    var myKind = islandKindOf(mine);
     var h = '<div class="clubform"><h3 style="margin-top:0">🏝 Your desert island five</h3>' +
-      '<p class="content" style="color:var(--muted)">The five albums you\'d take if you were stranded. Shown on your profile.</p>';
+      '<label for="islKind">My five are</label><select id="islKind" aria-label="What your five are: albums, artists, or songs">' +
+      ISLAND_KINDS.map(function(k){ return '<option value="' + k[0] + '"' + (k[0] === myKind ? " selected" : "") + ">" + k[1] + "</option>"; }).join("") +
+      '</select>' +
+      '<p class="content" style="color:var(--muted)" id="islKindDesc">' + islandKindDesc(myKind) + '</p>';
     islandSlots.forEach(function(s, i){
-      h += '<label for="isl' + i + '">#' + (i + 1) + '</label><input id="isl' + i + '" maxlength="120" value="' + esc(mine[s] || "") + '" placeholder="Artist — Album">';
+      h += '<label for="isl' + i + '">#' + (i + 1) + '</label><input id="isl' + i + '" maxlength="120" value="' + esc(mine[s] || "") + '" placeholder="' + islandSlotPlaceholder(myKind) + '">';
     });
     h += '<button class="btn" id="islSave" style="margin-top:10px">Save my five</button></div>';
     h += '<div class="clubform"><h3 style="margin-top:0">Compare with a metalhead</h3>' +
@@ -5087,11 +5105,16 @@ function clubIsland(){
       '<button class="btn secondary" id="islCmp" style="margin-top:10px">Compare</button><div id="islCmpOut" style="margin-top:8px"></div></div>';
     h += '<h3>🏝 Everyone\'s five</h3><div id="clubList"><div class="empty">Loading...</div></div>';
     box.innerHTML = h;
+    $("islKind").addEventListener("change", function(){
+      var k = $("islKind").value;
+      $("islKindDesc").textContent = islandKindDesc(k);
+      islandSlots.forEach(function(s, i){ $("isl" + i).placeholder = islandSlotPlaceholder(k); });
+    });
     $("islSave").addEventListener("click", function(){
-      var row = { user_id: state.user.id, updated_at: new Date().toISOString() };
+      var row = { user_id: state.user.id, updated_at: new Date().toISOString(), kind: $("islKind").value };
       var any = false;
       islandSlots.forEach(function(s, i){ var v = clubVal("isl" + i); row[s] = v; if(v) any = true; });
-      if(!any){ say("Add at least one album."); return; }
+      if(!any){ say("Add at least one."); return; }
       sb.from("desert_island").upsert(row, { onConflict: "user_id" }).then(function(r2){
         if(r2.error){ say("Couldn't save."); return; }
         say("Your five are saved. 🏝"); loadMyIsland(); clubIsland();
@@ -5106,7 +5129,7 @@ function clubIsland(){
         rows.forEach(function(r){
           var nm = state.profiles[r.user_id] || "metalhead";
           if(r.user_id !== state.user.id) opts += '<option value="' + r.user_id + '">' + esc(nm) + "</option>";
-          hh += '<div class="card"><div class="who">🏝 ' + esc(nm) + "'s five</div>" + islandListHtml(r) + "</div>";
+          hh += '<div class="card"><div class="who">🏝 ' + esc(nm) + "'s five (" + islandKindWord(islandKindOf(r)) + ")</div>" + islandListHtml(r) + "</div>";
         });
         list.innerHTML = hh;
         var sel = $("islWho"); if(sel) sel.innerHTML = '<option value="">Choose...</option>' + opts;
@@ -5128,23 +5151,24 @@ function compareIslands(mine, uid){
       if(a && b && (a === b || a.indexOf(b) !== -1 || b.indexOf(a) !== -1)) shared.push(theirs[s]);
     });
     var nm = state.profiles[uid] || "metalhead";
-    out.innerHTML = '<div class="card"><p class="content">You and <b>' + esc(nm) + '</b> share <b>' + shared.length + "</b> of 5." +
+    var kw = islandKindWord(islandKindOf(mine));
+    out.innerHTML = '<div class="card"><p class="content">You and <b>' + esc(nm) + '</b> share <b>' + shared.length + "</b> of 5 " + kw + "." +
       (shared.length ? "</p><ul class='content'>" + shared.map(function(x){ return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>" : "</p>") + "</div>";
-    say("You share " + shared.length + " of 5 with " + nm + ".");
+    say("You share " + shared.length + " of 5 " + kw + " with " + nm + ".");
   });
 }
 function loadMyIsland(){
   var box = $("myIsland"); if(!box) return;
   sb.from("desert_island").select("*").eq("user_id", state.user.id).maybeSingle().then(function(res){
     if(!res.data){ box.innerHTML = '<div class="empty">Not set yet — pick your five in the Club tab.</div>'; return; }
-    box.innerHTML = islandListHtml(res.data);
+    box.innerHTML = '<p class="content" style="color:var(--muted)">My five ' + islandKindWord(islandKindOf(res.data)) + '.</p>' + islandListHtml(res.data);
   });
 }
 function loadMemberIsland(userId){
   var box = $("memberIsland"); if(!box) return;
   sb.from("desert_island").select("*").eq("user_id", userId).maybeSingle().then(function(res){
     if(!res.data){ box.innerHTML = ""; return; }
-    box.innerHTML = '<h3 style="margin:12px 0 4px">🏝 Desert Island Five</h3>' + islandListHtml(res.data);
+    box.innerHTML = '<h3 style="margin:12px 0 4px">🏝 Desert Island Five (' + islandKindWord(islandKindOf(res.data)) + ')</h3>' + islandListHtml(res.data);
   });
 }
 
