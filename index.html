@@ -127,6 +127,9 @@
   #roomInfoOverlay .card { max-width:440px; width:100%; }
   #roomView[hidden] { display:none; }
   #roomView { display:flex; flex-direction:column; min-height:100vh; min-height:100dvh; }
+  #aiChatView[hidden] { display:none; }
+  #aiChatView { display:flex; flex-direction:column; min-height:100vh; min-height:100dvh; }
+  #aiChatMessages { flex:1 1 auto; }
   #roomMessages { flex:1 1 auto; overflow-y:auto; margin:12px 0; min-height:180px; }
   .roomrow { display:flex; align-items:center; gap:12px; width:100%; background:var(--panel); border:1px solid #333; border-radius:14px; padding:14px 16px; margin-bottom:10px; color:var(--text); font-size:18px; text-align:left; min-height:64px; }
   .roomrow .roommain { flex:1; }
@@ -181,7 +184,7 @@
 </head>
 <body id="metalheads-app">
 <header>
-  <h1>🤘 Metalheads <small>v1.56</small></h1>
+  <h1>🤘 Metalheads <small>v1.57</small></h1>
 </header>
 <main>
   <div id="status" class="sr" role="status" aria-live="polite"></div>
@@ -519,7 +522,7 @@
   </section>
   <section id="profileView" hidden>
     <h2>Your profile</h2>
-    <p style="color:var(--muted)">Metalhead Social v1.56</p>
+    <p style="color:var(--muted)">Metalhead Social v1.57</p>
     <div id="myStreak" style="margin:8px 0"></div>
     <div id="myNowPlaying" style="margin:8px 0"></div>
     <h2 style="margin-top:16px">Your badges</h2>
@@ -2507,7 +2510,7 @@ $("newInviteBtn").addEventListener("click", function(){
 var APP_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Metalhead-Social-App/releases/latest/download/app-release.apk";
 var STORE_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Lynxos-app-store/releases/latest/download/app-release.apk";
 /* ----- in-app updater: BUMP APP_VERSION_CODE every release or the banner never fires ----- */
-var APP_VERSION_CODE = 60;
+var APP_VERSION_CODE = 61;
 var updateApkUrl = null;
 function checkForAppUpdate(){
   var banner = document.getElementById("updateBanner"); if(!banner) return;
@@ -5966,6 +5969,16 @@ function aiBubble(m){
   }
   return d;
 }
+/* v1.57: the message list is not a scroll box — the page itself scrolls, so the
+   old box.scrollTop code did nothing. Scroll the composer into view so the
+   newest messages sit right above it and nobody has to hunt for them. */
+function aiScrollToLatest(){
+  try{
+    var c = document.querySelector("#aiChatView .roomcomposer");
+    if(c) c.scrollIntoView({block:"end"});
+    else window.scrollTo(0, document.documentElement.scrollHeight);
+  }catch(e){}
+}
 function renderAiMessages(){
   if(!aiPersona) return;
   var box = $("aiChatMessages");
@@ -5978,7 +5991,7 @@ function renderAiMessages(){
     box.appendChild(e);
   }
   msgs.forEach(function(m){ box.appendChild(aiBubble(m)); });
-  box.scrollTop = box.scrollHeight;
+  aiScrollToLatest();
 }
 function aiSend(){
   if(!aiPersona) return;
@@ -6043,21 +6056,23 @@ function aiVoiceFor(){
 /* Speak through the app's own voice engine when present (reliable in the
    APK). When the bridge supports it, the legend's pitch/rate rides along;
    if that call ever fails, plain speech is used as a fallback. */
-/* DIAGNOSTIC (v1.56): the Read button speaks ONE test line, then reports the
-   native utterance event. This tells us whether the engine actually started
-   rendering audio (start), finished (done), errored (error:code), or dropped
-   the utterance silently (none). */
+/* DIAGNOSTIC (v1.57): the Read button speaks ONE test line, then reports the
+   native engine state and the utterance event. v1.57 native changes: volatile
+   event field (v1.56 could report "none" even when the engine fired), audio on
+   the media stream, explicit Google TTS engine, unique utterance ids. */
 function aiNativeSpeak(text, voice){
   try{
     announce("Voice test starting. Listen for the app voice.");
     if(window.LynxosTts && typeof LynxosTts.speak === "function"){
-      var r;
+      var r, speaking = "unknown", engine = "unknown";
       try{ r = LynxosTts.speak("Hello. This is a voice test from Metalhead Social."); }
       catch(e){ r = "threw"; }
-      announce("Speak returned " + typeof r + " " + r + ". Waiting four seconds.");
+      try{ if(typeof LynxosTts.ttsSpeaking === "function") speaking = LynxosTts.ttsSpeaking() ? "yes" : "no"; }catch(e2){}
+      try{ if(typeof LynxosTts.ttsEngine === "function") engine = String(LynxosTts.ttsEngine()); }catch(e3){}
+      announce("Speak returned " + typeof r + " " + r + ". Engine speaking: " + speaking + ". Engine: " + engine + ". Waiting four seconds.");
       setTimeout(function(){
         var ev = "unknown";
-        try{ ev = LynxosTts.ttsUtterance(); }catch(e2){ ev = "utterance check threw"; }
+        try{ ev = LynxosTts.ttsUtterance(); }catch(e4){ ev = "utterance check threw"; }
         announce("Utterance event: " + ev + ".");
       }, 4000);
     }else{
@@ -6122,8 +6137,7 @@ $("aiChatText").addEventListener("input", function(){
 /* keep the AI message box visible when the keyboard opens (v1.50) */
 $("aiChatText").addEventListener("focus", function(){
   setTimeout(function(){
-    try{ var c = document.querySelector("#aiChatView .roomcomposer"); if(c) c.scrollIntoView({block:"nearest"}); }catch(e){}
-    var box = $("aiChatMessages"); if(box) box.scrollTop = box.scrollHeight;
+    aiScrollToLatest();
   }, 350);
 });
 $("aiChatBackBtn").addEventListener("click", function(){
