@@ -184,7 +184,7 @@
 </head>
 <body id="metalheads-app">
 <header>
-  <h1>🤘 Metalheads <small>v1.57</small></h1>
+  <h1>🤘 Metalheads <small>v1.58</small></h1>
 </header>
 <main>
   <div id="status" class="sr" role="status" aria-live="polite"></div>
@@ -522,7 +522,7 @@
   </section>
   <section id="profileView" hidden>
     <h2>Your profile</h2>
-    <p style="color:var(--muted)">Metalhead Social v1.57</p>
+    <p style="color:var(--muted)">Metalhead Social v1.58</p>
     <div id="myStreak" style="margin:8px 0"></div>
     <div id="myNowPlaying" style="margin:8px 0"></div>
     <h2 style="margin-top:16px">Your badges</h2>
@@ -2510,7 +2510,7 @@ $("newInviteBtn").addEventListener("click", function(){
 var APP_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Metalhead-Social-App/releases/latest/download/app-release.apk";
 var STORE_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Lynxos-app-store/releases/latest/download/app-release.apk";
 /* ----- in-app updater: BUMP APP_VERSION_CODE every release or the banner never fires ----- */
-var APP_VERSION_CODE = 61;
+var APP_VERSION_CODE = 62;
 var updateApkUrl = null;
 function checkForAppUpdate(){
   var banner = document.getElementById("updateBanner"); if(!banner) return;
@@ -3631,6 +3631,15 @@ function goBackOneScreen(){
     stopRoomRecording(true); closeRoomEmojis(); state.room = null;
     selectTab("roomsView"); loadRooms();
     say("Back to rooms.");
+    return true;
+  }
+  /* v1.58: Android-back from an AI legend chat goes back to the legends list
+     (and restores the tab bar) instead of exiting the app. */
+  if(cur === "aiChatView"){
+    document.body.classList.remove("in-room");
+    aiStopSpeaking(); aiPersona = null;
+    selectTab("roomsView"); loadRooms(); renderAiLegends();
+    say("Back to legends.");
     return true;
   }
   var backTo = BACKMAP[cur] || (cur === "memberView" ? (state.memberReturn || "feedView") : null);
@@ -5949,6 +5958,10 @@ function openAiChat(id){
   $("aiChatText").value = "";
   syncAiVoiceBtn();
   show("aiChatView");
+  /* v1.58: hide the fixed bottom tab bar while chatting, exactly like roomView
+     does — otherwise the tabs sit on top of the composer and main keeps its
+     110px bottom padding, which was the "big gap" under the text box. */
+  document.body.classList.add("in-room");
   renderAiMessages();
   say("Chatting with " + L.name + ", AI tribute.");
 }
@@ -5969,15 +5982,12 @@ function aiBubble(m){
   }
   return d;
 }
-/* v1.57: the message list is not a scroll box — the page itself scrolls, so the
-   old box.scrollTop code did nothing. Scroll the composer into view so the
-   newest messages sit right above it and nobody has to hunt for them. */
+/* v1.58: the composer is the last element and sticks to the viewport bottom,
+   so scrolling the page to its very bottom always lands the newest messages
+   right above the text box. (The old scrollIntoView call could no-op against
+   the sticky composer.) */
 function aiScrollToLatest(){
-  try{
-    var c = document.querySelector("#aiChatView .roomcomposer");
-    if(c) c.scrollIntoView({block:"end"});
-    else window.scrollTo(0, document.documentElement.scrollHeight);
-  }catch(e){}
+  try{ window.scrollTo(0, document.documentElement.scrollHeight); }catch(e){}
 }
 function renderAiMessages(){
   if(!aiPersona) return;
@@ -6143,6 +6153,7 @@ $("aiChatText").addEventListener("focus", function(){
 $("aiChatBackBtn").addEventListener("click", function(){
   aiStopSpeaking();
   aiPersona = null;
+  document.body.classList.remove("in-room"); /* v1.58: bring the tab bar back */
   selectTab("roomsView");
   loadRooms();
   renderAiLegends();
