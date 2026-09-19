@@ -184,7 +184,7 @@
 </head>
 <body id="metalheads-app">
 <header>
-  <h1>🤘 Metalheads <small>v1.61</small></h1>
+  <h1>🤘 Metalheads <small>v1.62</small></h1>
 </header>
 <main>
   <div id="status" class="sr" role="status" aria-live="polite"></div>
@@ -319,8 +319,8 @@
   <!-- SHOW BOARD -->
   <section id="showsView" hidden>
     <h2>Show board</h2>
-    <h3 style="margin:8px 0">🔥 Upcoming rock &amp; metal shows</h3>
-    <div class="row" style="margin-bottom:8px"><button class="btn small secondary" id="tmRefreshBtn">↻ Refresh shows</button></div>
+    <h3 style="margin:8px 0" id="tmShowsHead">🔥 Upcoming rock &amp; metal shows</h3>
+    <div class="row" style="margin-bottom:8px"><button class="btn small secondary" id="tmRefreshBtn">↻ Refresh shows</button> <button class="btn small secondary" id="tmNearBtn" aria-pressed="false">📍 Near me</button></div>
     <div id="tmShowList" style="margin-bottom:16px"><div class="empty">Loading upcoming shows...</div></div>
     <div id="tmShowOverlay" hidden>
       <div class="card" role="dialog" aria-modal="true" aria-label="Show details" style="max-width:520px;width:100%;max-height:86vh;overflow:auto">
@@ -522,7 +522,7 @@
   </section>
   <section id="profileView" hidden>
     <h2>Your profile</h2>
-    <p style="color:var(--muted)">Metalhead Social v1.61</p>
+    <p style="color:var(--muted)">Metalhead Social v1.62</p>
     <div id="myStreak" style="margin:8px 0"></div>
     <div id="myNowPlaying" style="margin:8px 0"></div>
     <h2 style="margin-top:16px">Your badges</h2>
@@ -2510,7 +2510,7 @@ $("newInviteBtn").addEventListener("click", function(){
 var APP_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Metalhead-Social-App/releases/latest/download/app-release.apk";
 var STORE_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Lynxos-app-store/releases/latest/download/app-release.apk";
 /* ----- in-app updater: BUMP APP_VERSION_CODE every release or the banner never fires ----- */
-var APP_VERSION_CODE = 65;
+var APP_VERSION_CODE = 66;
 var updateApkUrl = null;
 function checkForAppUpdate(){
   var banner = document.getElementById("updateBanner"); if(!banner) return;
@@ -2741,6 +2741,10 @@ function loadTmShows(force){
   var today = new Date().toISOString().slice(0, 10);
   var url = "https://app.ticketmaster.com/discovery/v2/events.json?apikey=" + TM_KEY +
     "&genreId=" + TM_GENRES + "&countryCode=US&sort=date,asc&size=50&startDateTime=" + today + "T00:00:00Z";
+  var near = tmNearGet();
+  if(near) url += "&latlong=" + near.lat + "," + near.lon + "&radius=100&unit=miles";
+  var tmHead = $("tmShowsHead");
+  if(tmHead) tmHead.textContent = near ? "🔥 Rock & metal shows near you" : "🔥 Upcoming rock & metal shows";
   fetch(url).then(function(r){ return r.json(); }).then(function(d){
     var evs = (d && d._embedded && d._embedded.events) || [];
     state.tmShows = {};
@@ -2798,6 +2802,43 @@ function openTmShow(id){
 function closeTmShow(){ $("tmShowOverlay").hidden = true; }
 if($("tmShowClose")) $("tmShowClose").addEventListener("click", function(){ closeTmShow(); say("Show details closed."); });
 if($("tmRefreshBtn")) $("tmRefreshBtn").addEventListener("click", function(){ loadTmShows(true); say("Refreshing shows."); });
+/* v1.62: Near-me shows toggle */
+var TM_NEAR_KEY = "tmNearMe";
+function tmNearGet(){
+  try {
+    var o = JSON.parse(localStorage.getItem(TM_NEAR_KEY) || "null");
+    if(o && o.on && typeof o.lat === "number" && typeof o.lon === "number") return o;
+  } catch(e){}
+  return null;
+}
+function tmNearSet(on, lat, lon){
+  try {
+    if(on) localStorage.setItem(TM_NEAR_KEY, JSON.stringify({ on: true, lat: lat, lon: lon, at: Date.now() }));
+    else localStorage.removeItem(TM_NEAR_KEY);
+  } catch(e){}
+}
+function paintTmNearBtn(){
+  var b = $("tmNearBtn"); if(!b) return;
+  var near = tmNearGet();
+  b.textContent = near ? "📍 Near me: on" : "📍 Near me";
+  b.setAttribute("aria-pressed", near ? "true" : "false");
+}
+function toggleTmNear(){
+  if(tmNearGet()){
+    tmNearSet(false); paintTmNearBtn(); loadTmShows(true);
+    say("Near me off. Showing all US shows."); return;
+  }
+  if(!navigator.geolocation){ say("Location isn't available on this device."); return; }
+  say("Asking for your location...");
+  navigator.geolocation.getCurrentPosition(function(pos){
+    tmNearSet(true, pos.coords.latitude, pos.coords.longitude);
+    paintTmNearBtn(); loadTmShows(true);
+    say("Showing rock and metal shows near you.");
+  }, function(err){
+    say("Couldn't get your location. " + (err && err.code === 1 ? "Permission was denied." : "Please try again."));
+  }, { timeout: 15000, maximumAge: 600000 });
+}
+if($("tmNearBtn")) $("tmNearBtn").addEventListener("click", function(){ toggleTmNear(); });
 function loadShows(){
   var list = $("showList");
   list.innerHTML = '<div class="empty">Loading shows...</div>';
@@ -3996,7 +4037,7 @@ $("sendGroupPostBtn").addEventListener("click", function(){
 /* ---------- tabs ---------- */
 $("tabFeed").addEventListener("click", function(){ selectTab("feedView"); loadFeed(); });
 $("tabGroups").addEventListener("click", function(){ selectTab("groupsView"); loadGroups(); });
-$("tabShows").addEventListener("click", function(){ selectTab("showsView"); loadTmShows(false); loadShows(); });
+$("tabShows").addEventListener("click", function(){ selectTab("showsView"); paintTmNearBtn(); loadTmShows(false); loadShows(); });
 $("tabReleases").addEventListener("click", function(){ selectTab("releasesView"); loadReleases(); say("New releases. Rock and metal only."); });
 $("relAlbumsBtn").addEventListener("click", function(){ relType = "album"; setRelToggle(); loadReleases(); });
 $("relSinglesBtn").addEventListener("click", function(){ relType = "single"; setRelToggle(); loadReleases(); });
