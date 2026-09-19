@@ -291,14 +291,29 @@ jobs:
                   webView.addJavascriptInterface(new Object() {
                       @JavascriptInterface
                       public void speak(String text) {
+                          doSpeak(text, 1.0f, 1.0f);
+                      }
+                      @JavascriptInterface
+                      public void speakVoice(String text, double pitch, double rate) {
+                          float p = (float) pitch;
+                          float r = (float) rate;
+                          if (p <= 0) p = 1.0f;
+                          if (r <= 0) r = 1.0f;
+                          doSpeak(text, p, r);
+                      }
+                      private void doSpeak(String text, float pitch, float rate) {
                           if (text == null) return;
+                          try {
+                              if (tts != null) {
+                                  try { tts.setPitch(pitch); } catch (Exception ignored) {}
+                                  try { tts.setSpeechRate(rate); } catch (Exception ignored) {}
+                              }
+                          } catch (Exception ignored) {}
                           if (ttsReady && tts != null) {
                               try {
                                   tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "metalhead-reader");
                               } catch (Exception ignored) {}
-                          } else {
-                              pendingTts = text;
-                          }
+                          } else { pendingTts = text; }
                       }
                       @JavascriptInterface
                       public void stop() {
