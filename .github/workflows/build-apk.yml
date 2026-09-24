@@ -128,6 +128,7 @@ jobs:
               <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
               <uses-permission android:name="android.permission.RECORD_AUDIO" />
               <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+              <uses-permission android:name="android.permission.CAMERA" />
               <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
               <queries>
                   <intent>
@@ -214,8 +215,9 @@ jobs:
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
-                  if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                      requestPermissions(new String[]{ android.Manifest.permission.RECORD_AUDIO }, 2002);
+                  if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED ||
+                      checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                      requestPermissions(new String[]{ android.Manifest.permission.RECORD_AUDIO, android.Manifest.permission.CAMERA }, 2002);
                   }
                   MessageCheckReceiver.schedule(this);
                   webView = new WebView(this);
@@ -262,7 +264,14 @@ jobs:
                           filePathCallback = callback;
                           Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
                           intent.addCategory(Intent.CATEGORY_OPENABLE);
-                          intent.setType("image/*");
+                          String acceptType = "*/*";
+                          try {
+                              String[] accepts = params.getAcceptTypes();
+                              if (accepts != null && accepts.length > 0 && accepts[0] != null && !accepts[0].isEmpty()) {
+                                  acceptType = accepts[0];
+                              }
+                          } catch (Exception ignored) {}
+                          intent.setType(acceptType);
                           try {
                               self.startActivityForResult(Intent.createChooser(intent, "Choose a photo"), FILE_CHOOSER_REQUEST);
                           } catch (Exception e) {
