@@ -184,7 +184,7 @@
 </head>
 <body id="metalheads-app">
 <header>
-  <h1>🤘 Metalheads <small>v1.63</small></h1>
+  <h1>🤘 Metalheads <small>v1.64</small></h1>
 </header>
 <main>
   <div id="status" class="sr" role="status" aria-live="polite"></div>
@@ -416,13 +416,42 @@
   <section id="chatView" hidden>
     <div class="back-link"><button class="ghost-btn" id="chatBackBtn">← Back to messages</button></div>
     <h2 id="chatTitle">Chat</h2>
+    <div class="row"><button class="btn small secondary" id="voiceCallBtn" aria-label="Start a voice call">📞 Voice call</button><button class="btn small secondary" id="videoCallBtn" aria-label="Start a video call">📹 Video call</button></div>
     <div id="chatMessages"></div>
     <div id="typingLine" class="typing-line" role="status" aria-live="polite"></div>
+    <div id="chatAttachStatus" class="attach-status" role="status"></div>
+    <div id="chatEmojiPanel" class="emojipanel" hidden role="group" aria-label="Emojis"></div>
     <div class="roomcomposer">
       <label for="chatText" class="sr-only">Message</label>
-      <textarea id="chatText" rows="1" maxlength="1000" placeholder="Say something..." aria-label="Type a message"></textarea>
+      <button class="iconbtn" id="chatPhotoBtn" aria-label="Attach a photo">📷</button>
+      <button class="iconbtn" id="chatFileBtn" aria-label="Attach a file">📎</button>
+      <button class="iconbtn" id="chatEmojiBtn" aria-pressed="false" aria-label="Open emoji picker">😀</button>
+      <textarea id="chatText" rows="1" maxlength="1000" placeholder="Message" aria-label="Type a message"></textarea>
+      <button class="iconbtn" id="chatRecBtn" aria-pressed="false" aria-label="Record a voice clip">🎤</button>
       <button class="iconbtn sendbtn" id="sendChatBtn" aria-label="Send message">➤</button>
     </div>
+    <input id="chatPhotoInput" type="file" accept="image/*" hidden aria-label="Choose a photo">
+    <input id="chatFileInput" type="file" hidden aria-label="Choose a file">
+  </section>
+
+  <!-- VOICE/VIDEO CALL (v1.64) -->
+  <section id="callView" hidden>
+    <h2 id="callTitle">Call</h2>
+    <p id="callStatus" role="status" aria-live="polite" style="color:var(--muted)">Calling…</p>
+    <video id="remoteVideo" autoplay playsinline style="width:100%;max-height:40vh;background:#000;border-radius:12px" hidden></video>
+    <video id="localVideo" autoplay playsinline muted style="width:120px;border-radius:12px;background:#000" hidden></video>
+    <div class="row" style="margin-top:12px">
+      <button class="btn secondary" id="callMuteBtn" aria-pressed="false">🔇 Mute</button>
+      <button class="btn secondary" id="callSpeakerBtn" aria-pressed="true">🔊 Speaker</button>
+      <button class="btn" id="callHangupBtn" aria-label="End call">⏹ End call</button>
+    </div>
+  </section>
+
+  <!-- INCOMING CALL (v1.64) -->
+  <section id="callIncomingView" hidden>
+    <h2>Incoming call</h2>
+    <p id="callIncomingText" role="alert"></p>
+    <div class="row"><button class="btn" id="callAcceptBtn">✓ Accept</button><button class="btn secondary" id="callDeclineBtn">✕ Decline</button></div>
   </section>
 
   <!-- CHAT ROOMS: room list (v1.18) -->
@@ -541,7 +570,7 @@
   </section>
   <section id="profileView" hidden>
     <h2>Your profile</h2>
-    <p style="color:var(--muted)">Metalhead Social v1.63</p>
+    <p style="color:var(--muted)">Metalhead Social v1.64</p>
     <div id="myStreak" style="margin:8px 0"></div>
     <div id="myNowPlaying" style="margin:8px 0"></div>
     <h2 style="margin-top:16px">Your badges</h2>
@@ -692,7 +721,7 @@ var state = { user:null, profile:null, profiles:{}, avatars:{}, myReactions:{}, 
   repostOf:null, repostAuthorId:null, groupId:null, myGroups:[], online:{}, presenceChan:null,
   typingChan:null, typingTimer:null, typingLastSent:0, typingHideTimer:null,
   storyQueue:[], storyIdx:0, storyTimer:null, storyUserId:null, pendingStoryImage:null };
-var VIEWS = ["authView","setupView","feedView","postView","threadView","memberView","showsView","releasesView","radioView","newsView","pollsView","chatsView","pickMemberView","chatView","roomsView","roomView","aiChatView","clubView","searchView","profileView","groupsView","groupView","alertsView","storyView","storyPostView"];
+var VIEWS = ["authView","setupView","feedView","postView","threadView","memberView","showsView","releasesView","radioView","newsView","pollsView","chatsView","pickMemberView","chatView","callView","callIncomingView","roomsView","roomView","aiChatView","clubView","searchView","profileView","groupsView","groupView","alertsView","storyView","storyPostView"];
 var TABVIEWS = ["feedView","postView","showsView","releasesView","radioView","newsView","pollsView","chatsView","roomsView","clubView","searchView","profileView","groupsView","alertsView"];
 
 try { state.aiVoice = localStorage.getItem("mhAiVoice") === "1"; } catch(e){}
@@ -2537,7 +2566,7 @@ $("newInviteBtn").addEventListener("click", function(){
 var APP_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Metalhead-Social-App/releases/latest/download/app-release.apk";
 var STORE_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Lynxos-app-store/releases/latest/download/app-release.apk";
 /* ----- in-app updater: BUMP APP_VERSION_CODE every release or the banner never fires ----- */
-var APP_VERSION_CODE = 67;
+var APP_VERSION_CODE = 68;
 var updateApkUrl = null;
 function checkForAppUpdate(){
   var banner = document.getElementById("updateBanner"); if(!banner) return;
@@ -2942,6 +2971,7 @@ if($("tmShowClose")) $("tmShowClose").addEventListener("click", function(){ clos
 if($("tmRefreshBtn")) $("tmRefreshBtn").addEventListener("click", function(){ loadTmShows(true); say("Refreshing shows."); });
 /* v1.62: Near-me shows toggle */
 /* v1.63: Metal Radio + Metal News tabs, notifications table fix, PM composer restyle */
+/* v1.64: Messenger-style PM composer with photo/file/voice, voice+video calls */
 var TM_NEAR_KEY = "tmNearMe";
 function tmNearGet(){
   try {
@@ -3222,7 +3252,7 @@ function openChat(partnerId, partnerName){
   if(isBlockedEither(partnerId)){ say("You can't message this member."); return; }
   state.chatPartner = { id: partnerId, name: partnerName || state.profiles[partnerId] || "metalhead" };
   $("chatTitle").textContent = "Chat with " + state.chatPartner.name;
-  $("chatText").value = "";
+  resetChatComposer();
   show("chatView");
   loadChatMessages();
   openTyping();
@@ -3232,7 +3262,7 @@ function loadChatMessages(){
   var box = $("chatMessages");
   if(!state.chatPartner) return;
   var me = state.user.id, them = state.chatPartner.id;
-  sb.from("messages").select("id,sender_id,body,created_at,read_at")
+  sb.from("messages").select("id,sender_id,body,created_at,read_at,image_url,audio_url,file_url,file_name")
     .or("and(sender_id.eq." + me + ",receiver_id.eq." + them + "),and(sender_id.eq." + them + ",receiver_id.eq." + me + ")")
     .order("created_at", {ascending:true}).limit(100)
     .then(function(res){
@@ -3244,10 +3274,21 @@ function loadChatMessages(){
       res.data.forEach(function(m){
         var d = document.createElement("div");
         d.className = "bubble " + (m.sender_id === me ? "me" : "them");
+        var name = m.sender_id === me ? "you" : (state.chatPartner.name || "them");
         var seenHtml = (seenMsg && m.id === seenMsg.id)
           ? '<span class="seen" aria-label="Seen at ' + esc(fmtTime(seenMsg.read_at)) + '">Seen ' + esc(fmtTime(seenMsg.read_at)) + "</span>" : "";
-        d.innerHTML = esc(m.body) + '<span class="when">' + esc(ago(m.created_at)) + "</span>" + seenHtml;
+        var h = "";
+        if(m.image_url) h += '<button class="thumb-btn" data-fullimg="' + esc(m.image_url) + '" aria-label="Photo from ' + esc(name) + ', open full size">' +
+          '<img class="postimg" loading="lazy" decoding="async" src="' + esc(m.image_url) + '" alt="Photo shared in the private chat"></button>';
+        if(m.audio_url) h += '<button class="btn secondary audioplay" data-audiourl="' + esc(m.audio_url) + '" aria-label="Play voice clip from ' + esc(name) + '">▶ Play voice clip</button>';
+        if(m.file_url) h += '<a class="filelink" href="' + esc(m.file_url) + '" download="' + esc(m.file_name || "file") + '">📎 ' + esc(m.file_name || "Download file") + "</a>";
+        if(m.body) h += esc(m.body);
+        h += '<span class="when">' + esc(ago(m.created_at)) + "</span>" + seenHtml;
+        d.innerHTML = h;
         box.appendChild(d);
+      });
+      box.querySelectorAll("[data-audiourl]").forEach(function(b){
+        b.addEventListener("click", function(){ toggleRoomAudio(this); });
       });
       box.scrollTop = box.scrollHeight;
       markChatRead();
@@ -3260,22 +3301,148 @@ function markChatRead(){
     .eq("sender_id", state.chatPartner.id).eq("receiver_id", state.user.id).is("read_at", null)
     .then(function(){});
 }
+/* ---------- private chat attachments: Messenger-style composer (v1.64, mirrors rooms) ---------- */
+var chatPending = { imageUrl:null, audioUrl:null, fileUrl:null, fileName:null };
+function chatAttachStatus(msg){ $("chatAttachStatus").textContent = msg || ""; }
+function closeChatEmojis(){
+  $("chatEmojiPanel").hidden = true;
+  $("chatEmojiBtn").setAttribute("aria-pressed", "false");
+}
+function resetChatComposer(){
+  chatPending = { imageUrl:null, audioUrl:null, fileUrl:null, fileName:null };
+  $("chatText").value = "";
+  $("chatPhotoInput").value = ""; $("chatFileInput").value = "";
+  chatAttachStatus("");
+  closeChatEmojis();
+  stopChatRecording(true);
+}
+$("chatPhotoBtn").addEventListener("click", function(){ $("chatPhotoInput").click(); });
+$("chatPhotoInput").addEventListener("change", function(){
+  var f = $("chatPhotoInput").files[0];
+  if(!f) return;
+  chatAttachStatus("Preparing photo...");
+  say("Preparing photo.");
+  downscalePhoto(f).then(function(df){
+    chatAttachStatus("Uploading photo...");
+    say("Uploading photo.");
+    var path = "pm/" + state.user.id + "/" + Date.now() + "_" + (df.name || f.name).replace(/[^a-zA-Z0-9._-]/g, "_");
+    sb.storage.from("post-media").upload(path, df, { contentType: df.type || "image/jpeg" }).then(function(res){
+      if(res.error){ chatAttachStatus("Photo upload failed: " + res.error.message); say("Photo upload failed."); return; }
+      chatPending.imageUrl = sb.storage.from("post-media").getPublicUrl(path).data.publicUrl;
+      chatAttachStatus("Photo attached ✓");
+      say("Photo attached.");
+    });
+  });
+});
+$("chatFileBtn").addEventListener("click", function(){ $("chatFileInput").click(); });
+$("chatFileInput").addEventListener("change", function(){
+  var f = $("chatFileInput").files[0];
+  if(!f) return;
+  if(f.size > 10 * 1024 * 1024){ chatAttachStatus("That file is over 10 MB."); say("That file is too big. 10 MB max."); return; }
+  chatAttachStatus("Uploading file...");
+  say("Uploading file.");
+  var path = "pm/" + state.user.id + "/" + Date.now() + "_" + (f.name || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
+  sb.storage.from("post-media").upload(path, f, { contentType: f.type || "application/octet-stream" }).then(function(res){
+    if(res.error){ chatAttachStatus("File upload failed: " + res.error.message); say("File upload failed."); return; }
+    chatPending.fileUrl = sb.storage.from("post-media").getPublicUrl(path).data.publicUrl;
+    chatPending.fileName = f.name || "file";
+    chatAttachStatus("File attached ✓ " + chatPending.fileName);
+    say("File attached.");
+  });
+});
+$("chatEmojiBtn").addEventListener("click", function(){
+  var p = $("chatEmojiPanel");
+  var open = p.hidden;
+  if(open && !p.hasChildNodes()){
+    var c = document.createElement("button");
+    c.type = "button"; c.textContent = "✕ Close emojis";
+    c.setAttribute("aria-label", "Close emoji picker");
+    c.addEventListener("click", function(){ closeChatEmojis(); say("Emoji picker closed."); });
+    p.appendChild(c);
+    ROOM_EMOJIS.forEach(function(e){
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = e;
+      b.setAttribute("aria-label", "Insert " + e);
+      b.addEventListener("click", function(){ insertChatEmoji(e); });
+      p.appendChild(b);
+    });
+  }
+  p.hidden = !open;
+  $("chatEmojiBtn").setAttribute("aria-pressed", open ? "true" : "false");
+  say(open ? "Emoji picker open." : "Emoji picker closed.");
+});
+function insertChatEmoji(e){
+  var t = $("chatText");
+  var s = (t.selectionStart == null ? t.value.length : t.selectionStart);
+  var en = (t.selectionEnd == null ? s : t.selectionEnd);
+  t.value = t.value.slice(0, s) + e + t.value.slice(en);
+  t.focus();
+  try{ t.setSelectionRange(s + e.length, s + e.length); }catch(err){}
+}
+$("chatRecBtn").addEventListener("click", function(){
+  if(state.chatRecording){ stopChatRecording(); return; }
+  if(!window.MediaRecorder || !navigator.mediaDevices){ say("Voice recording is not supported on this device."); return; }
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream){
+    try{
+      var mr = new MediaRecorder(stream);
+      state.chatMediaRecorder = mr;
+      state.chatAudioChunks = [];
+      mr.ondataavailable = function(e){ if(e.data.size) state.chatAudioChunks.push(e.data); };
+      mr.onstop = function(){
+        stream.getTracks().forEach(function(t){ t.stop(); });
+        uploadChatVoice(new Blob(state.chatAudioChunks, { type: mr.mimeType || "audio/webm" }));
+      };
+      mr.start();
+      state.chatRecording = true;
+      var b = $("chatRecBtn");
+      b.classList.add("recording"); b.setAttribute("aria-pressed", "true"); b.textContent = "⏹";
+      b.setAttribute("aria-label", "Stop recording");
+      chatAttachStatus("Recording... tap Stop when done.");
+      say("Recording started.");
+    }catch(e){ say("Couldn't start recording."); }
+  }).catch(function(){ say("Microphone access was denied."); });
+});
+function stopChatRecording(silent){
+  if(state.chatMediaRecorder && state.chatRecording){
+    try{ state.chatMediaRecorder.stop(); }catch(e){}
+  }
+  state.chatRecording = false;
+  var b = $("chatRecBtn");
+  if(b){ b.classList.remove("recording"); b.setAttribute("aria-pressed", "false"); b.textContent = "🎤";
+    b.setAttribute("aria-label", "Record a voice clip"); }
+  if(!silent) chatAttachStatus("");
+}
+function uploadChatVoice(blob){
+  chatAttachStatus("Uploading voice clip...");
+  say("Uploading voice clip.");
+  var path = "pm/" + state.user.id + "/" + Date.now() + ".webm";
+  sb.storage.from("post-media").upload(path, blob, { contentType: "audio/webm" }).then(function(res){
+    stopChatRecording(true);
+    if(res.error){ chatAttachStatus("Voice upload failed: " + res.error.message); say("Voice upload failed."); return; }
+    chatPending.audioUrl = sb.storage.from("post-media").getPublicUrl(path).data.publicUrl;
+    chatAttachStatus("Voice clip attached ✓ Tap send.");
+    say("Voice clip attached. Tap send to send it.");
+  });
+}
 $("sendChatBtn").addEventListener("click", function(){
   var text = $("chatText").value.trim();
-  if(!text || !state.chatPartner){ if(!text) say("Write a message first."); return; }
+  var hasAttach = !!(chatPending.imageUrl || chatPending.audioUrl || chatPending.fileUrl);
+  if((!text && !hasAttach) || !state.chatPartner){ if(!text && !hasAttach) say("Write a message or attach something first."); return; }
   if(isBlockedEither(state.chatPartner.id)){ say("You can't message this member."); return; }
   $("sendChatBtn").disabled = true;
   clearTimeout(state.typingTimer);
   sendTyping(false);
-  sb.from("messages").insert({ sender_id: state.user.id, receiver_id: state.chatPartner.id, body: text }).then(function(res){
+  sb.from("messages").insert({ sender_id: state.user.id, receiver_id: state.chatPartner.id, body: text,
+    image_url: chatPending.imageUrl, audio_url: chatPending.audioUrl,
+    file_url: chatPending.fileUrl, file_name: chatPending.fileName }).then(function(res){
     $("sendChatBtn").disabled = false;
     if(res.error){ say(res.error.message); return; }
-    $("chatText").value = "";
+    resetChatComposer();
     notifyUser(state.chatPartner.id, "dm", state.user.id, null, (state.profiles[state.user.id] || "A member") + " sent you a message");
     loadChatMessages();
   });
 });
-$("chatBackBtn").addEventListener("click", function(){ closeTyping(); state.chatPartner = null; selectTab("chatsView"); loadChats(); });
+$("chatBackBtn").addEventListener("click", function(){ closeTyping(); resetChatComposer(); state.chatPartner = null; selectTab("chatsView"); loadChats(); });
 
 /* ---------- typing indicators + read receipts ---------- */
 function typingChanName(a, b){ return "typing:" + [a, b].sort().join("_"); }
@@ -3332,6 +3499,183 @@ $("chatText").addEventListener("input", function(){
   state.typingLastSent = now;
   sendTyping(true);
   pokeTypingStop();
+});
+
+/* ---------- voice + video calls (v1.64): WebRTC, Supabase "calls" table for signaling ---------- */
+state.call = null;
+state.incomingCall = null;
+var CALL_STUN = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+function callPeerName(){ return (state.chatPartner && state.chatPartner.name) || "your metalhead"; }
+function showCallView(title, statusText){
+  $("callTitle").textContent = title;
+  $("callStatus").textContent = statusText;
+  show("callView");
+}
+function openCallIce(id, pc){
+  var chan = sb.channel("call:" + id);
+  chan.on("broadcast", { event: "ice" }, function(payload){
+    var p = (payload && payload.payload) || {};
+    if(p.candidate){ try{ pc.addIceCandidate(new RTCIceCandidate(p.candidate)); }catch(e){} }
+  });
+  chan.on("broadcast", { event: "hangup" }, function(){
+    endCall("They hung up.");
+  });
+  chan.subscribe();
+  pc.onicecandidate = function(e){
+    if(e.candidate){ try{ chan.send({ type: "broadcast", event: "ice", payload: { candidate: e.candidate.toJSON() } }); }catch(err){} }
+  };
+  return chan;
+}
+function startCall(isVideo){
+  if(!state.chatPartner || state.call){ if(state.call) say("You're already on a call."); return; }
+  if(isBlockedEither(state.chatPartner.id)){ say("You can't call this member."); return; }
+  var me = state.user.id, partner = state.chatPartner.id, name = callPeerName();
+  say(isVideo ? "Starting video call." : "Starting voice call.");
+  navigator.mediaDevices.getUserMedia({ audio: true, video: !!isVideo }).then(function(stream){
+    var pc;
+    try{ pc = new RTCPeerConnection(CALL_STUN); }catch(e){ say("Calling is not supported on this device."); return; }
+    stream.getTracks().forEach(function(t){ pc.addTrack(t, stream); });
+    pc.createOffer().then(function(offer){ return pc.setLocalDescription(offer); }).then(function(){
+      sb.from("calls").insert({ caller_id: me, callee_id: partner, offer: pc.localDescription.toJSON(), is_video: !!isVideo, status: "ringing" }).then(function(res){
+        if(res.error || !res.data || !res.data[0]){ say("Couldn't start the call: " + (res.error ? res.error.message : "unknown error.")); try{ pc.close(); }catch(e){} return; }
+        var id = res.data[0].id;
+        var iceChan = openCallIce(id, pc);
+        pc.ontrack = function(e){
+          $("remoteVideo").srcObject = e.streams[0];
+          if(isVideo) $("remoteVideo").hidden = false;
+        };
+        var statusChan = sb.channel("callupd:" + id)
+          .on("postgres_changes", { event: "UPDATE", schema: "public", table: "calls", filter: "id=eq." + id }, function(payload){
+            var c = payload.new; if(!c || !state.call || state.call.id !== id) return;
+            if(c.answer && !pc.currentRemoteDescription){
+              pc.setRemoteDescription(new RTCSessionDescription(c.answer)).then(function(){
+                $("callStatus").textContent = "Connected with " + name + ".";
+                say("Connected.");
+              }).catch(function(){});
+            }
+            if(c.status === "declined"){ endCall("They declined the call."); return; }
+            if(c.status === "ended"){ endCall(); }
+          }).subscribe();
+        var ringTimer = setTimeout(function(){
+          if(state.call && state.call.id === id){
+            sb.from("calls").update({ status: "ended" }).eq("id", id).then(function(){});
+            endCall("No answer.");
+          }
+        }, 45000);
+        state.call = { id: id, pc: pc, stream: stream, isVideo: !!isVideo, role: "caller", iceChan: iceChan, statusChan: statusChan, ringTimer: ringTimer, name: name };
+        showCallView((isVideo ? "Video" : "Voice") + " call with " + name, "Calling " + name + "…");
+        if(isVideo){ $("localVideo").srcObject = stream; $("localVideo").hidden = false; }
+        say("Calling " + name + ".");
+        notifyUser(partner, "call", me, null, (state.profiles[me] || "Someone") + " is calling you (" + (isVideo ? "video" : "voice") + ")");
+      });
+    }).catch(function(){ say("Couldn't start the call."); try{ pc.close(); }catch(e){} });
+  }).catch(function(){ say("Couldn't access the microphone" + (isVideo ? " or camera" : "") + "."); });
+}
+function incomingCall(c){
+  if(state.call){
+    sb.from("calls").update({ status: "declined" }).eq("id", c.id).then(function(){});
+    return;
+  }
+  loadProfiles([c.caller_id]).then(function(){
+    if(state.call) return;
+    var name = state.profiles[c.caller_id] || "a metalhead";
+    state.incomingCall = c;
+    state.incomingCall.callerName = name;
+    $("callIncomingText").textContent = "Incoming " + (c.is_video ? "video" : "voice") + " call from " + name + ".";
+    show("callIncomingView");
+    say("Incoming " + (c.is_video ? "video" : "voice") + " call from " + name + ".");
+  });
+}
+function acceptCall(c){
+  state.incomingCall = null;
+  var name = c.callerName || "your metalhead";
+  navigator.mediaDevices.getUserMedia({ audio: true, video: !!c.is_video }).then(function(stream){
+    var pc;
+    try{ pc = new RTCPeerConnection(CALL_STUN); }catch(e){ say("Calling is not supported on this device."); return; }
+    stream.getTracks().forEach(function(t){ pc.addTrack(t, stream); });
+    pc.setRemoteDescription(new RTCSessionDescription(c.offer)).then(function(){
+      return pc.createAnswer();
+    }).then(function(answer){
+      return pc.setLocalDescription(answer);
+    }).then(function(){
+      var iceChan = openCallIce(c.id, pc);
+      pc.ontrack = function(e){
+        $("remoteVideo").srcObject = e.streams[0];
+        if(c.is_video) $("remoteVideo").hidden = false;
+      };
+      var statusChan = sb.channel("callupd:" + c.id)
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "calls", filter: "id=eq." + c.id }, function(payload){
+          var u = payload.new; if(!u || !state.call || state.call.id !== c.id) return;
+          if(u.status === "ended") endCall();
+        }).subscribe();
+      state.call = { id: c.id, pc: pc, stream: stream, isVideo: !!c.is_video, role: "callee", iceChan: iceChan, statusChan: statusChan, ringTimer: null, name: name };
+      sb.from("calls").update({ answer: pc.localDescription.toJSON(), status: "connected" }).eq("id", c.id).then(function(){});
+      showCallView((c.is_video ? "Video" : "Voice") + " call with " + name, "Connected with " + name + ".");
+      if(c.is_video){ $("localVideo").srcObject = stream; $("localVideo").hidden = false; }
+      say("Connected.");
+    }).catch(function(){ say("Couldn't connect the call."); try{ pc.close(); }catch(e){} });
+  }).catch(function(){
+    say("Couldn't access the microphone" + (c.is_video ? " or camera" : "") + ".");
+    sb.from("calls").update({ status: "declined" }).eq("id", c.id).then(function(){});
+    if(state.chatPartner) show("chatView");
+  });
+}
+function endCall(msg){
+  var cl = state.call;
+  state.call = null;
+  state.incomingCall = null;
+  if(cl){
+    if(cl.ringTimer) clearTimeout(cl.ringTimer);
+    if(cl.iceChan){ try{ sb.removeChannel(cl.iceChan); }catch(e){} }
+    if(cl.statusChan){ try{ sb.removeChannel(cl.statusChan); }catch(e){} }
+    if(cl.stream){ try{ cl.stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){} }
+    if(cl.pc){ try{ cl.pc.close(); }catch(e){} }
+  }
+  try{ $("remoteVideo").srcObject = null; $("remoteVideo").hidden = true; }catch(e){}
+  try{ $("localVideo").srcObject = null; $("localVideo").hidden = true; }catch(e){}
+  var mb = $("callMuteBtn"); if(mb){ mb.setAttribute("aria-pressed", "false"); mb.textContent = "🔇 Mute"; }
+  var sp = $("callSpeakerBtn"); if(sp){ sp.setAttribute("aria-pressed", "true"); }
+  if(state.chatPartner) show("chatView");
+  else if(state.user) selectTab("chatsView");
+  say(msg || "Call ended.");
+}
+$("voiceCallBtn").addEventListener("click", function(){ startCall(false); });
+$("videoCallBtn").addEventListener("click", function(){ startCall(true); });
+$("callDeclineBtn").addEventListener("click", function(){
+  var c = state.incomingCall;
+  state.incomingCall = null;
+  if(c) sb.from("calls").update({ status: "declined" }).eq("id", c.id).then(function(){});
+  if(state.chatPartner) show("chatView");
+  say("Call declined.");
+});
+$("callAcceptBtn").addEventListener("click", function(){
+  var c = state.incomingCall;
+  if(!c){ say("That call is gone."); return; }
+  acceptCall(c);
+});
+$("callMuteBtn").addEventListener("click", function(){
+  var cl = state.call;
+  if(!cl || !cl.stream){ say("No call is active."); return; }
+  var tracks = cl.stream.getAudioTracks();
+  if(!tracks.length){ say("No microphone track."); return; }
+  var on = !tracks[0].enabled;
+  tracks.forEach(function(t){ t.enabled = on; });
+  this.setAttribute("aria-pressed", on ? "false" : "true");
+  this.textContent = on ? "🔇 Mute" : "🔈 Unmuted";
+  say(on ? "Microphone on." : "Muted.");
+});
+$("callSpeakerBtn").addEventListener("click", function(){
+  var on = this.getAttribute("aria-pressed") !== "true";
+  this.setAttribute("aria-pressed", on ? "true" : "false");
+  say(on ? "Speaker on." : "Speaker off.");
+});
+$("callHangupBtn").addEventListener("click", function(){
+  var cl = state.call;
+  if(cl){
+    if(cl.iceChan){ try{ cl.iceChan.send({ type: "broadcast", event: "hangup", payload: {} }); }catch(e){} }
+    sb.from("calls").update({ status: "ended" }).eq("id", cl.id).then(function(){});
+  }
+  endCall("Call ended.");
 });
 
 /* ---------- chat rooms (v1.18) ---------- */
@@ -6093,6 +6437,11 @@ function subscribeLive(){
       say("Alert: " + n.text);
       updateAlertBadge();
       if(!$("alertsView").hidden) loadAlerts();
+    })
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "calls", filter: "callee_id=eq." + state.user.id }, function(payload){
+      var c = payload.new;
+      if(!c || c.status !== "ringing" || c.caller_id === state.user.id) return;
+      incomingCall(c);
     })
     .subscribe();
 }
