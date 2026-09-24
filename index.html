@@ -155,8 +155,8 @@
   .iconbtn { flex:0 0 auto; width:44px; height:44px; border-radius:50%; border:2px solid var(--gold); background:#111; color:var(--gold); font-size:20px; display:flex; align-items:center; justify-content:center; padding:0; }
   .iconbtn.sendbtn { background:var(--gold); color:#111; font-size:22px; border-color:var(--gold); }
   .iconbtn.recording { background:#c00; border-color:#c00; color:#fff; }
-  #roomText, #aiChatText { flex:1 1 auto; min-width:0; min-height:44px; max-height:120px; border-radius:999px; padding:10px 16px; font-size:16px; background:#1a1a1a; color:#fff; border:2px solid #444; resize:none; }
-  #roomText:focus, #aiChatText:focus { border-color:var(--gold); outline:none; }
+  #roomText, #aiChatText, #chatText { flex:1 1 auto; min-width:0; min-height:44px; max-height:120px; border-radius:999px; padding:10px 16px; font-size:16px; background:#1a1a1a; color:#fff; border:2px solid #444; resize:none; }
+  #roomText:focus, #aiChatText:focus, #chatText:focus { border-color:var(--gold); outline:none; }
   /* AI Metal Legends (v1.49) */
   .aiLegendGrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
   .aiLegendCard { background:var(--panel); border:2px solid var(--gold-dim); border-radius:14px; padding:16px 10px; color:var(--text); min-height:110px; text-align:center; font-size:16px; }
@@ -184,7 +184,7 @@
 </head>
 <body id="metalheads-app">
 <header>
-  <h1>🤘 Metalheads <small>v1.62</small></h1>
+  <h1>🤘 Metalheads <small>v1.63</small></h1>
 </header>
 <main>
   <div id="status" class="sr" role="status" aria-live="polite"></div>
@@ -357,6 +357,23 @@
     <div id="relList"><div class="empty">Loading new releases...</div></div>
   </section>
 
+  <!-- METAL RADIO (v1.63) -->
+  <section id="radioView" hidden>
+    <h2>Metal Radio</h2>
+    <p style="color:var(--muted)">Pick a station and tap Play. Tap again to stop.</p>
+    <div id="radioList" style="margin-top:12px"><div class="empty">Loading stations...</div></div>
+  </section>
+
+  <!-- METAL NEWS (v1.63) -->
+  <section id="newsView" hidden>
+    <h2>Metal News</h2>
+    <div class="row" style="margin-bottom:8px">
+      <button class="btn small secondary" id="newsRefreshBtn">↻ Refresh</button>
+      <span id="newsUpdated" class="when"></span>
+    </div>
+    <div id="newsList"><div class="empty">Loading metal news...</div></div>
+  </section>
+
   <!-- POLLS -->
   <section id="pollsView" hidden>
     <h2>Polls</h2>
@@ -401,9 +418,11 @@
     <h2 id="chatTitle">Chat</h2>
     <div id="chatMessages"></div>
     <div id="typingLine" class="typing-line" role="status" aria-live="polite"></div>
-    <label for="chatText">Message</label>
-    <textarea id="chatText" maxlength="1000" placeholder="Say something..."></textarea>
-    <button class="btn" id="sendChatBtn" style="width:100%;margin-top:8px">Send</button>
+    <div class="roomcomposer">
+      <label for="chatText" class="sr-only">Message</label>
+      <textarea id="chatText" rows="1" maxlength="1000" placeholder="Say something..." aria-label="Type a message"></textarea>
+      <button class="iconbtn sendbtn" id="sendChatBtn" aria-label="Send message">➤</button>
+    </div>
   </section>
 
   <!-- CHAT ROOMS: room list (v1.18) -->
@@ -522,7 +541,7 @@
   </section>
   <section id="profileView" hidden>
     <h2>Your profile</h2>
-    <p style="color:var(--muted)">Metalhead Social v1.62</p>
+    <p style="color:var(--muted)">Metalhead Social v1.63</p>
     <div id="myStreak" style="margin:8px 0"></div>
     <div id="myNowPlaying" style="margin:8px 0"></div>
     <h2 style="margin-top:16px">Your badges</h2>
@@ -644,6 +663,8 @@
   <button id="tabGroups" role="tab" aria-selected="false">Groups</button>
   <button id="tabShows" role="tab" aria-selected="false">Shows</button>
   <button id="tabReleases" role="tab" aria-selected="false">Releases</button>
+  <button id="tabRadio" role="tab" aria-selected="false">Radio</button>
+  <button id="tabNews" role="tab" aria-selected="false">News</button>
   <button id="tabPolls" role="tab" aria-selected="false">Polls</button>
   <button id="tabChats" role="tab" aria-selected="false">Chats</button>
   <button id="tabRooms" role="tab" aria-selected="false">Rooms</button>
@@ -671,8 +692,8 @@ var state = { user:null, profile:null, profiles:{}, avatars:{}, myReactions:{}, 
   repostOf:null, repostAuthorId:null, groupId:null, myGroups:[], online:{}, presenceChan:null,
   typingChan:null, typingTimer:null, typingLastSent:0, typingHideTimer:null,
   storyQueue:[], storyIdx:0, storyTimer:null, storyUserId:null, pendingStoryImage:null };
-var VIEWS = ["authView","setupView","feedView","postView","threadView","memberView","showsView","releasesView","pollsView","chatsView","pickMemberView","chatView","roomsView","roomView","aiChatView","clubView","searchView","profileView","groupsView","groupView","alertsView","storyView","storyPostView"];
-var TABVIEWS = ["feedView","postView","showsView","releasesView","pollsView","chatsView","roomsView","clubView","searchView","profileView","groupsView","alertsView"];
+var VIEWS = ["authView","setupView","feedView","postView","threadView","memberView","showsView","releasesView","radioView","newsView","pollsView","chatsView","pickMemberView","chatView","roomsView","roomView","aiChatView","clubView","searchView","profileView","groupsView","groupView","alertsView","storyView","storyPostView"];
+var TABVIEWS = ["feedView","postView","showsView","releasesView","radioView","newsView","pollsView","chatsView","roomsView","clubView","searchView","profileView","groupsView","alertsView"];
 
 try { state.aiVoice = localStorage.getItem("mhAiVoice") === "1"; } catch(e){}
 function say(text){
@@ -706,7 +727,7 @@ function show(id){
   $("tabs").hidden = TABVIEWS.indexOf(id) === -1;
 }
 function selectTab(name){
-  [["tabFeed","feedView"],["tabGroups","groupsView"],["tabShows","showsView"],["tabReleases","releasesView"],["tabPolls","pollsView"],["tabChats","chatsView"],["tabRooms","roomsView"],["tabClub","clubView"],["tabAlerts","alertsView"],["tabSearch","searchView"],["tabProfile","profileView"]].forEach(function(p){
+  [["tabFeed","feedView"],["tabGroups","groupsView"],["tabShows","showsView"],["tabReleases","releasesView"],["tabRadio","radioView"],["tabNews","newsView"],["tabPolls","pollsView"],["tabChats","chatsView"],["tabRooms","roomsView"],["tabClub","clubView"],["tabAlerts","alertsView"],["tabSearch","searchView"],["tabProfile","profileView"]].forEach(function(p){
     var b = $(p[0]);
     var sel = p[1] === name;
     b.setAttribute("aria-selected", sel ? "true" : "false");
@@ -1780,8 +1801,14 @@ function setReaction(postId, emoji){
     state.myReactions[postId] = emoji;
     say("You reacted " + emoji + ".");
     var author = state.postAuthors[postId];
-    if(author && author !== state.user.id){
-      notifyUser(author, "reaction", state.user.id, postId, (state.profiles[state.user.id] || "Someone") + " reacted " + emoji + " to your post");
+    var reactMsg = (state.profiles[state.user.id] || "Someone") + " reacted " + emoji + " to your post";
+    if(author){
+      if(author !== state.user.id) notifyUser(author, "reaction", state.user.id, postId, reactMsg);
+    } else {
+      /* fallback: author may live in group_posts (v1.63) */
+      sb.from("group_posts").select("user_id").eq("id", postId).single().then(function(g){
+        if(g.data && g.data.user_id && g.data.user_id !== state.user.id) notifyUser(g.data.user_id, "reaction", state.user.id, postId, reactMsg);
+      });
     }
     refreshFeed();
   });
@@ -2510,7 +2537,7 @@ $("newInviteBtn").addEventListener("click", function(){
 var APP_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Metalhead-Social-App/releases/latest/download/app-release.apk";
 var STORE_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Lynxos-app-store/releases/latest/download/app-release.apk";
 /* ----- in-app updater: BUMP APP_VERSION_CODE every release or the banner never fires ----- */
-var APP_VERSION_CODE = 66;
+var APP_VERSION_CODE = 67;
 var updateApkUrl = null;
 function checkForAppUpdate(){
   var banner = document.getElementById("updateBanner"); if(!banner) return;
@@ -2680,6 +2707,117 @@ function loadReleases(){
     relLoadError(list, 'Couldn\'t load releases. Check your connection.');
   });
 }
+/* ---------- METAL RADIO (v1.63) ---------- */
+var RADIO_STATIONS = [
+  { name: "SomaFM Metal Detector", desc: "Black, doom, prog, sludge, thrash and more. Commercial-free.", url: "https://ice5.somafm.com/metal-128-mp3" },
+  { name: "Rock Antenne Heavy Metal", desc: "Heavy, classic and power metal, 24/7.", url: "https://s2-webradio.rockantenne.de/heavy-metal/stream/mp3" },
+  { name: "1.FM High Voltage", desc: "Hard rock and metal hits.", url: "https://strm112.1.fm/highvoltage_mobile_mp3" }
+];
+state.radioAudio = null;
+state.radioStation = null;
+try { var savedRadio = localStorage.getItem("mhRadioStation"); if(savedRadio) state.radioStation = savedRadio; }catch(e){}
+function loadRadio(){
+  var list = $("radioList");
+  list.innerHTML = "";
+  RADIO_STATIONS.forEach(function(st){
+    var card = document.createElement("article");
+    card.className = "card";
+    var playing = (state.radioStation === st.url) && !!state.radioAudio;
+    card.innerHTML = '<h3 style="margin:0 0 4px">' + esc(st.name) + '</h3>' +
+      '<p style="color:var(--muted);margin:0 0 10px">' + esc(st.desc) + '</p>' +
+      '<button class="btn small" data-station="' + esc(st.url) + '" data-station-name="' + esc(st.name) + '">' + (playing ? "&#9209; Stop" : "&#9654; Play") + '</button>';
+    list.appendChild(card);
+  });
+  list.querySelectorAll("[data-station]").forEach(function(b){
+    b.addEventListener("click", function(){ toggleStation(b.getAttribute("data-station"), b.getAttribute("data-station-name"), b); });
+  });
+  say("Metal Radio. Pick a station and tap Play.");
+}
+function stopRadio(){
+  if(state.radioAudio){ try{ state.radioAudio.pause(); }catch(e){} state.radioAudio = null; }
+  state.radioStation = null;
+  try{ localStorage.removeItem("mhRadioStation"); }catch(e){}
+  document.querySelectorAll("#radioList [data-station]").forEach(function(b){ b.innerHTML = "&#9654; Play"; });
+}
+function toggleStation(url, name, btn){
+  if(state.radioStation === url && state.radioAudio){ stopRadio(); say("Stopped " + name + "."); return; }
+  stopRadio();
+  var audio = new Audio(url);
+  state.radioAudio = audio;
+  state.radioStation = url;
+  try{ localStorage.setItem("mhRadioStation", url); }catch(e){}
+  btn.innerHTML = "&#9209; Stop";
+  say("Playing " + name + ".");
+  audio.play().catch(function(){
+    state.radioAudio = null; state.radioStation = null;
+    try{ localStorage.removeItem("mhRadioStation"); }catch(e){}
+    btn.innerHTML = "&#9654; Play";
+    say("Couldn't play that station.");
+  });
+}
+/* ---------- METAL NEWS (v1.63) ---------- */
+var NEWS_FEEDS = [
+  { name: "Blabbermouth", url: "https://blabbermouth.net/feed" },
+  { name: "Metal Injection", url: "https://metalinjection.net/feed" }
+];
+var NEWS_CACHE_KEY = "mhNewsCache";
+state.newsCache = null;
+function newsCacheGet(){
+  if(state.newsCache) return state.newsCache;
+  try{
+    var o = JSON.parse(localStorage.getItem(NEWS_CACHE_KEY) || "null");
+    if(o && o.items && (Date.now() - o.at) < 15*60*1000){ state.newsCache = o; return o; }
+  }catch(e){}
+  return null;
+}
+function parseRssItems(xml, source){
+  var doc = new DOMParser().parseFromString(xml, "text/xml");
+  return Array.from(doc.querySelectorAll("item")).slice(0, 25).map(function(it){
+    var txt = function(tag){ var el = it.querySelector(tag); return el ? el.textContent.trim() : ""; };
+    return { title: txt("title"), link: txt("link"), date: txt("pubDate"), source: source };
+  }).filter(function(n){ return n.title && n.link; });
+}
+function loadNews(force){
+  var list = $("newsList");
+  var cached = newsCacheGet();
+  if(cached && !force){ renderNews(list, cached.items, cached.at); return; }
+  list.innerHTML = '<div class="empty">Loading metal news...</div>';
+  Promise.allSettled(NEWS_FEEDS.map(function(f){
+    return fetch(f.url).then(function(r){ return r.text(); }).then(function(xml){ return parseRssItems(xml, f.name); });
+  })).then(function(results){
+    var items = [];
+    results.forEach(function(r){ if(r.status === "fulfilled" && r.value) items = items.concat(r.value); });
+    items.sort(function(a, b){ return new Date(b.date) - new Date(a.date); });
+    items = items.slice(0, 30);
+    var at = Date.now();
+    if(items.length){
+      state.newsCache = { items: items, at: at };
+      try{ localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(state.newsCache)); }catch(e){}
+    }
+    renderNews(list, items, at);
+  }).catch(function(){
+    renderNews(list, [], null);
+  });
+}
+function renderNews(list, items, at){
+  if(!items.length){
+    list.innerHTML = '<div class="error">Couldn\'t load the news. Check your connection and tap Refresh.</div>';
+    say("Couldn't load the metal news.");
+    return;
+  }
+  list.innerHTML = "";
+  say(items.length + " metal news stories.");
+  items.forEach(function(n){
+    var card = document.createElement("article");
+    card.className = "card";
+    card.innerHTML = '<h3 style="margin:0 0 4px"><a href="#" data-openlink="' + esc(n.link) + '">' + esc(n.title) + '</a></h3>' +
+      '<span class="when">' + esc(n.source) + ' &middot; ' + esc(ago(n.date)) + '</span>';
+    list.appendChild(card);
+  });
+  var upd = $("newsUpdated");
+  if(upd) upd.textContent = at ? "Updated " + ago(new Date(at).toISOString()) : "";
+}
+$("newsRefreshBtn").addEventListener("click", function(){ loadNews(true); say("Refreshing metal news."); });
 function loadRelSingles(list){
   var genres = [1153, 21, 20]; /* Metal, Rock, Alternative */
   Promise.all(genres.map(function(g){
@@ -2803,6 +2941,7 @@ function closeTmShow(){ $("tmShowOverlay").hidden = true; }
 if($("tmShowClose")) $("tmShowClose").addEventListener("click", function(){ closeTmShow(); say("Show details closed."); });
 if($("tmRefreshBtn")) $("tmRefreshBtn").addEventListener("click", function(){ loadTmShows(true); say("Refreshing shows."); });
 /* v1.62: Near-me shows toggle */
+/* v1.63: Metal Radio + Metal News tabs, notifications table fix, PM composer restyle */
 var TM_NEAR_KEY = "tmNearMe";
 function tmNearGet(){
   try {
@@ -3550,6 +3689,11 @@ $("roomText").addEventListener("input", function(){
   this.style.height = "auto";
   this.style.height = Math.min(this.scrollHeight, 120) + "px";
 });
+/* private chat message box auto-grows the same way (v1.63) */
+$("chatText").addEventListener("input", function(){
+  this.style.height = "auto";
+  this.style.height = Math.min(this.scrollHeight, 120) + "px";
+});
 $("roomRecBtn").addEventListener("click", function(){
   if(state.recording){ stopRoomRecording(); return; }
   if(!window.MediaRecorder || !navigator.mediaDevices){ say("Voice recording is not supported on this device."); return; }
@@ -4039,6 +4183,8 @@ $("tabFeed").addEventListener("click", function(){ selectTab("feedView"); loadFe
 $("tabGroups").addEventListener("click", function(){ selectTab("groupsView"); loadGroups(); });
 $("tabShows").addEventListener("click", function(){ selectTab("showsView"); paintTmNearBtn(); loadTmShows(false); loadShows(); });
 $("tabReleases").addEventListener("click", function(){ selectTab("releasesView"); loadReleases(); say("New releases. Rock and metal only."); });
+$("tabRadio").addEventListener("click", function(){ selectTab("radioView"); loadRadio(); });
+$("tabNews").addEventListener("click", function(){ selectTab("newsView"); loadNews(false); });
 $("relAlbumsBtn").addEventListener("click", function(){ relType = "album"; setRelToggle(); loadReleases(); });
 $("relSinglesBtn").addEventListener("click", function(){ relType = "single"; setRelToggle(); loadReleases(); });
 $("tabPolls").addEventListener("click", function(){ selectTab("pollsView"); loadPolls(); });
