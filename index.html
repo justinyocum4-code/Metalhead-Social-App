@@ -184,7 +184,7 @@
 </head>
 <body id="metalheads-app">
 <header>
-  <h1>🤘 Metalheads <small>v1.64</small></h1>
+  <h1>🤘 Metalheads <small>v1.65</small></h1>
 </header>
 <main>
   <div id="status" class="sr" role="status" aria-live="polite"></div>
@@ -199,6 +199,7 @@
     <input id="email" type="email" autocomplete="email" inputmode="email">
     <label for="password">Password</label>
     <input id="password" type="password" autocomplete="current-password">
+    <div style="margin-top:8px"><label style="display:flex;align-items:center;gap:8px;font-weight:normal"><input type="checkbox" id="showPw" style="width:22px;height:22px"> Show password</label></div>
     <label for="inviteCode">Invite code (optional)</label>
     <input id="inviteCode" maxlength="16" placeholder="Got one from a friend? Enter it here" autocapitalize="characters" autocomplete="off">
     <div class="row" style="margin-top:16px">
@@ -236,6 +237,29 @@
     </div>
   </section>
 
+  <!-- FIRST-RUN WELCOME TOUR (v1.65) -->
+  <section id="welcomeView" hidden>
+    <h2>🤘 Welcome to the pit!</h2>
+    <p>You're in. This is your private metal clubhouse — here's the 60-second tour. Pick anywhere to start:</p>
+    <div class="card">
+      <p><b>📢 The Feed</b><br><span style="color:var(--muted)">Say hi, post what's spinning, hype what you love.</span></p>
+      <button class="btn" id="tourFeedBtn" style="width:100%">Say hi in the Feed</button>
+    </div>
+    <div class="card">
+      <p><b>👥 Groups &amp; Rooms</b><br><span style="color:var(--muted)">Find your subgenre people. Rooms run live DJ queues — take a turn on the decks.</span></p>
+      <button class="btn" id="tourGroupsBtn" style="width:100%">Find your Groups</button>
+    </div>
+    <div class="card">
+      <p><b>🎲 The Clubhouse</b><br><span style="color:var(--muted)">Riff battles, album drafts, mystery riffs, desert-island lists, and more games.</span></p>
+      <button class="btn" id="tourClubBtn" style="width:100%">Play in the Clubhouse</button>
+    </div>
+    <div class="card">
+      <p><b>🗣 The Scream Wall</b><br><span style="color:var(--muted)">Hold one button and scream for up to 10 seconds. No text, no likes — just noise. The pit hears you.</span></p>
+      <button class="btn" id="tourScreamBtn" style="width:100%">Scream into the Void</button>
+    </div>
+    <button class="btn secondary" id="tourDoneBtn" style="width:100%;margin-top:8px">Enter the pit</button>
+  </section>
+
   <!-- FEED -->
   <section id="feedView" hidden>
     <div class="updatebanner" id="updateBanner" hidden>
@@ -253,6 +277,18 @@
     <div class="feedfilter" role="group" aria-label="Feed filter">
       <button class="btn small" id="filterAllBtn" aria-pressed="true">Everyone</button>
       <button class="btn small secondary" id="filterFriendsBtn" aria-pressed="false">Friends only</button>
+    </div>
+    <!-- SCREAM WALL (v1.65): audio-only communal feed. No text, no likes, no replies — just noise. -->
+    <div class="card" id="screamWall" aria-label="Scream wall">
+      <h2 style="margin-top:0">🗣 Scream Wall</h2>
+      <p style="color:var(--muted);margin-top:0">No text. No likes. No replies. Tap the button, let it out for up to 10 seconds — the pit hears you. Screams fade after 7 days.</p>
+      <button class="btn" id="screamBtn" style="width:100%;font-size:20px;padding:18px" aria-pressed="false">🤘 TAP TO SCREAM</button>
+      <div id="screamStatus" class="attach-status" role="status"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn secondary" id="screamPlayBtn">▶ Play the wall</button>
+        <button class="btn secondary" id="screamStopBtn" hidden>⏹ Stop</button>
+      </div>
+      <div id="screamList" style="margin-top:12px"><div class="empty">Loading screams...</div></div>
     </div>
     <div id="pinnedList" aria-label="Pinned posts"></div>
     <div id="feedTopCards"></div>
@@ -442,7 +478,6 @@
     <video id="localVideo" autoplay playsinline muted style="width:120px;border-radius:12px;background:#000" hidden></video>
     <div class="row" style="margin-top:12px">
       <button class="btn secondary" id="callMuteBtn" aria-pressed="false">🔇 Mute</button>
-      <button class="btn secondary" id="callSpeakerBtn" aria-pressed="true">🔊 Speaker</button>
       <button class="btn" id="callHangupBtn" aria-label="End call">⏹ End call</button>
     </div>
   </section>
@@ -570,7 +605,7 @@
   </section>
   <section id="profileView" hidden>
     <h2>Your profile</h2>
-    <p style="color:var(--muted)">Metalhead Social v1.64</p>
+    <p style="color:var(--muted)">Metalhead Social v1.65</p>
     <div id="myStreak" style="margin:8px 0"></div>
     <div id="myNowPlaying" style="margin:8px 0"></div>
     <h2 style="margin-top:16px">Your badges</h2>
@@ -585,6 +620,8 @@
     <label for="avatarInput">Profile picture</label>
     <input id="avatarInput" type="file" accept="image/*" aria-label="Upload a profile picture">
     <div id="avatarStatus" class="attach-status" role="status"></div>
+    <label for="editUsername">Username</label>
+    <input id="editUsername" maxlength="30" autocomplete="off">
     <label for="editAbout">About you</label>
     <textarea id="editAbout" maxlength="300" placeholder="Tell the pit about yourself..."></textarea>
     <label for="editHometown">Hometown</label>
@@ -613,6 +650,8 @@
     <div id="friendRequests"></div>
     <h2>Friends</h2>
     <div id="friendList"></div>
+    <h2>Blocked members</h2>
+    <div id="blockedList"><div class="empty">Loading...</div></div>
     <h2>Invite friends</h2>
     <div class="card">
       <p style="color:var(--muted);margin-top:0">Share a code with a friend. When they sign up with it, you become friends automatically. Codes last 30 days.</p>
@@ -721,7 +760,7 @@ var state = { user:null, profile:null, profiles:{}, avatars:{}, myReactions:{}, 
   repostOf:null, repostAuthorId:null, groupId:null, myGroups:[], online:{}, presenceChan:null,
   typingChan:null, typingTimer:null, typingLastSent:0, typingHideTimer:null,
   storyQueue:[], storyIdx:0, storyTimer:null, storyUserId:null, pendingStoryImage:null };
-var VIEWS = ["authView","setupView","feedView","postView","threadView","memberView","showsView","releasesView","radioView","newsView","pollsView","chatsView","pickMemberView","chatView","callView","callIncomingView","roomsView","roomView","aiChatView","clubView","searchView","profileView","groupsView","groupView","alertsView","storyView","storyPostView"];
+var VIEWS = ["authView","setupView","welcomeView","feedView","postView","threadView","memberView","showsView","releasesView","radioView","newsView","pollsView","chatsView","pickMemberView","chatView","callView","callIncomingView","roomsView","roomView","aiChatView","clubView","searchView","profileView","groupsView","groupView","alertsView","storyView","storyPostView"];
 var TABVIEWS = ["feedView","postView","showsView","releasesView","radioView","newsView","pollsView","chatsView","roomsView","clubView","searchView","profileView","groupsView","alertsView"];
 
 try { state.aiVoice = localStorage.getItem("mhAiVoice") === "1"; } catch(e){}
@@ -756,6 +795,7 @@ function show(id){
   $("tabs").hidden = TABVIEWS.indexOf(id) === -1;
 }
 function selectTab(name){
+  var names = {"feedView":"Feed","groupsView":"Groups","showsView":"Shows","releasesView":"Releases","radioView":"Radio","newsView":"News","pollsView":"Polls","chatsView":"Chats","roomsView":"Rooms","clubView":"Clubhouse","alertsView":"Alerts","searchView":"Search","profileView":"Profile","postView":"New post"};
   [["tabFeed","feedView"],["tabGroups","groupsView"],["tabShows","showsView"],["tabReleases","releasesView"],["tabRadio","radioView"],["tabNews","newsView"],["tabPolls","pollsView"],["tabChats","chatsView"],["tabRooms","roomsView"],["tabClub","clubView"],["tabAlerts","alertsView"],["tabSearch","searchView"],["tabProfile","profileView"]].forEach(function(p){
     var b = $(p[0]);
     var sel = p[1] === name;
@@ -763,6 +803,10 @@ function selectTab(name){
     if(sel && b.scrollIntoView) b.scrollIntoView({inline:"center", block:"nearest"});
   });
   show(name);
+  /* v1.65: stop the scream wall when leaving the feed so audio never bleeds across tabs. */
+  try{ if(name !== "feedView" && typeof stopScreamWall === "function") stopScreamWall(); }catch(e){}
+  /* v1.65: tab switches used to land in silence for TalkBack users. */
+  if(names[name]) say(names[name] + ".");
   if(name === "profileView" && state.isModerator) loadModeration();
 }
 function showError(box, msg){ var e = $(box); e.hidden = false; e.textContent = msg; say(msg); }
@@ -993,6 +1037,11 @@ $("signInBtn").addEventListener("click", function(){
   });
 });
 /* ---------- forgot password (v1.17) ---------- */
+/* v1.65: password visibility toggle — table stakes, especially for screen-reader users. */
+$("showPw").addEventListener("change", function(){
+  $("password").type = this.checked ? "text" : "password";
+  say(this.checked ? "Password visible." : "Password hidden.");
+});
 $("forgotPwBtn").addEventListener("click", function(){
   var box = $("forgotPwBox");
   box.hidden = !box.hidden;
@@ -1208,6 +1257,8 @@ function ensureOauthProfile(user){
     } catch(e){}
     base = String(base).replace(/[^a-zA-Z0-9_]/g, "").slice(0, 24) || "metalhead";
     return pickUniqueUsername(base).then(function(name){
+      /* v1.65: OAuth users skip setupView entirely, so flag them for the welcome tour. */
+      try{ localStorage.setItem("mhNewMember", "1"); }catch(e){}
       return sb.from("profiles").upsert({ id: user.id, username: name }).then(function(){ return null; });
     });
   });
@@ -1232,7 +1283,8 @@ $("signOutBtn").addEventListener("click", function(){
       LynxosStore.set("mh_refresh_token", "");
     }
   } catch(e){}
-  sb.auth.signOut().then(function(){ location.reload(); });
+  /* v1.65: if sign-out fails the user used to stay signed in with no message. */
+  sb.auth.signOut().then(function(){ location.reload(); }, function(){ say("Sign-out failed. Check your connection and try again."); });
 });
 $("batteryBtn").addEventListener("click", function(){ requestBatteryExemption(); });
 
@@ -1241,12 +1293,24 @@ $("saveProfileBtn").addEventListener("click", function(){
   var name = $("username").value.trim();
   if(!name){ showError("setupError", "Pick a username first."); return; }
   $("setupError").hidden = true;
-  sb.from("profiles").upsert({ id: state.user.id, username: name, favorite_bands: $("bands").value.trim() })
-    .then(function(res){
-      if(res.error){ showError("setupError", res.error.message); return; }
-      say("Welcome to the pit, " + name + ".");
-      boot();
-    });
+  say("Checking that name.");
+  /* v1.65: the manual path never checked for duplicate usernames (the OAuth
+     path did), so @mentions could notify the wrong person. */
+  pickUniqueUsername(name).then(function(unique){
+    if(unique !== name){
+      $("username").value = unique;
+      showError("setupError", "That name is taken — we suggested \"" + unique + "\" instead.");
+      say("That name is taken. We filled in " + unique + ". Hit Join the pit to take it, or type another.");
+      return;
+    }
+    sb.from("profiles").upsert({ id: state.user.id, username: name, favorite_bands: $("bands").value.trim() })
+      .then(function(res){
+        if(res.error){ showError("setupError", res.error.message); return; }
+        try{ localStorage.setItem("mhNewMember", "1"); }catch(e){}
+        say("Welcome to the pit, " + name + ".");
+        boot();
+      });
+  });
 });
 $("coverInput").addEventListener("change", function(){
   var f = $("coverInput").files[0];
@@ -1291,25 +1355,46 @@ $("avatarInput").addEventListener("change", function(){
 });
 $("lastfmConnectBtn").addEventListener("click", lastfmConnect);
 $("saveBandsBtn").addEventListener("click", function(){
-  var updates = {
-    favorite_bands: $("editBands").value.trim(),
-    about: $("editAbout").value.trim(),
-    hometown: $("editHometown").value.trim(),
-    now_spinning: $("editSpinning").value.trim() || null,
-    lastfm_user: $("editLastfm").value.trim() || null
+  var newName = $("editUsername").value.trim();
+  var doSave = function(finalName){
+    var updates = {
+      favorite_bands: $("editBands").value.trim(),
+      about: $("editAbout").value.trim(),
+      hometown: $("editHometown").value.trim(),
+      now_spinning: $("editSpinning").value.trim() || null,
+      lastfm_user: $("editLastfm").value.trim() || null
+    };
+    if(finalName) updates.username = finalName;
+    state.lastfmUser = updates.lastfm_user;
+    if(state.pendingCoverUrl) updates.cover_url = state.pendingCoverUrl;
+    sb.from("profiles").update(updates).eq("id", state.user.id)
+      .then(function(res){
+        var m = $("profileMsg");
+        if(res.error){ m.hidden = false; m.textContent = res.error.message; return; }
+        if(finalName){ state.profile.username = finalName; state.profiles[state.user.id] = finalName; }
+        state.pendingCoverUrl = null;
+        $("coverInput").value = "";
+        $("coverStatus").textContent = "";
+        m.hidden = false; m.textContent = "Saved.";
+        say("Profile saved.");
+      });
   };
-  state.lastfmUser = updates.lastfm_user;
-  if(state.pendingCoverUrl) updates.cover_url = state.pendingCoverUrl;
-  sb.from("profiles").update(updates).eq("id", state.user.id)
-    .then(function(res){
-      var m = $("profileMsg");
-      if(res.error){ m.hidden = false; m.textContent = res.error.message; return; }
-      state.pendingCoverUrl = null;
-      $("coverInput").value = "";
-      $("coverStatus").textContent = "";
-      m.hidden = false; m.textContent = "Saved.";
-      say("Profile saved.");
+  /* v1.65: username is now editable — with the same uniqueness check as signup. */
+  if(newName && state.profile && newName !== state.profile.username){
+    say("Checking that name.");
+    pickUniqueUsername(newName).then(function(unique){
+      if(unique !== newName){
+        $("editUsername").value = unique;
+        var m = $("profileMsg");
+        m.hidden = false; m.textContent = "That name is taken — we suggested \"" + unique + "\" instead.";
+        say("That name is taken. We filled in " + unique + ". Hit Save profile to take it, or type another.");
+        return;
+      }
+      doSave(newName);
     });
+  } else {
+    doSave(null);
+  }
 });
 
 /* ---------- feed ---------- */
@@ -1397,6 +1482,8 @@ var reportTarget = { type:null, id:null };
 function openReportDialog(type, id, label){
   if(!type || !id) return;
   reportTarget.type = type; reportTarget.id = id;
+  /* v1.65: remember the invoking button so focus returns to it on close. */
+  try{ reportTarget.returnFocus = document.activeElement; }catch(e){ reportTarget.returnFocus = null; }
   $("reportWhat").textContent = "You are reporting " + String(label || "Report").replace(/^Report this /, "this ") + ".";
   var radios = document.querySelectorAll('input[name="reportReason"]');
   for(var i = 0; i < radios.length; i++) radios[i].checked = (i === 0);
@@ -1408,7 +1495,14 @@ function openReportDialog(type, id, label){
 function closeReportDialog(){
   $("reportOverlay").hidden = true;
   reportTarget.type = null; reportTarget.id = null;
+  /* v1.65: return focus to the Report button that opened the dialog. */
+  try{ if(reportTarget.returnFocus && reportTarget.returnFocus.focus) reportTarget.returnFocus.focus(); }catch(e){}
+  reportTarget.returnFocus = null;
 }
+/* v1.65: Escape closes the report dialog for keyboard users. */
+document.addEventListener("keydown", function(e){
+  if(e.key === "Escape" && !$("reportOverlay").hidden){ closeReportDialog(); say("Report dialog closed."); }
+});
 $("reportCancelBtn").addEventListener("click", closeReportDialog);
 $("reportSubmitBtn").addEventListener("click", function(){
   if(!reportTarget.type || !reportTarget.id){ closeReportDialog(); return; }
@@ -1683,6 +1777,7 @@ function loadFeed(){
   if(pinBox) pinBox.innerHTML = "";
   loadStories();
   loadFeedCards();
+  loadScreams();
   sb.from("saved_posts").select("post_id").eq("user_id", state.user.id).then(function(sr){
     state.savedIds = {};
     if(!sr.error && sr.data) sr.data.forEach(function(s){ state.savedIds[s.post_id] = true; });
@@ -1948,6 +2043,147 @@ function resetComposer(){
   $("photoInput").value = ""; attachStatus("");
 }
 $("postText").addEventListener("input", function(){ $("charCount").textContent = $("postText").value.length; });
+/* ---------- Scream Wall (v1.65): audio-only communal feed ----------
+   No text, no likes, no replies — just raw noise. Tap to record up to
+   10 seconds; screams expire after 7 days. */
+var screamRec = { recording:false, recorder:null, chunks:[], timer:null, countTimer:null };
+var screamPlay = { queue:[], idx:0, audio:null, playing:false };
+function screamStatus(msg){ var s = $("screamStatus"); if(s) s.textContent = msg; }
+$("screamBtn").addEventListener("click", function(){
+  if(screamRec.recording){ stopScream(); return; }
+  if(!window.MediaRecorder || !navigator.mediaDevices){ say("Screaming is not supported on this device."); return; }
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream){
+    try{
+      var mr = new MediaRecorder(stream);
+      screamRec.recorder = mr; screamRec.chunks = [];
+      mr.ondataavailable = function(e){ if(e.data.size) screamRec.chunks.push(e.data); };
+      mr.onstop = function(){
+        stream.getTracks().forEach(function(t){ try{ t.stop(); }catch(e){} });
+        uploadScream(new Blob(screamRec.chunks, { type: mr.mimeType || "audio/webm" }));
+      };
+      mr.start();
+      screamRec.recording = true;
+      var b = $("screamBtn");
+      b.setAttribute("aria-pressed", "true"); b.textContent = "⏹ TAP TO STOP (10)";
+      var left = 10;
+      screamStatus("Recording your scream... 10 seconds left.");
+      say("Screaming now. Tap again to stop, or it stops at 10 seconds.");
+      screamRec.countTimer = setInterval(function(){
+        left--;
+        if(left <= 0){ stopScream(); return; }
+        b.textContent = "⏹ TAP TO STOP (" + left + ")";
+        if(left <= 5) screamStatus("Recording... " + left + " seconds left.");
+      }, 1000);
+      screamRec.timer = setTimeout(stopScream, 10000);
+    }catch(e){ say("Couldn't start screaming."); }
+  }).catch(function(){ say("Microphone access was denied."); });
+});
+function stopScream(){
+  if(!screamRec.recording) return;
+  screamRec.recording = false;
+  clearTimeout(screamRec.timer); clearInterval(screamRec.countTimer);
+  try{ if(screamRec.recorder) screamRec.recorder.stop(); }catch(e){}
+  var b = $("screamBtn");
+  b.setAttribute("aria-pressed", "false"); b.textContent = "🤘 TAP TO SCREAM";
+}
+function uploadScream(blob){
+  if(!blob || !blob.size){ screamStatus(""); say("Nothing recorded."); return; }
+  screamStatus("Hurling it into the void...");
+  var path = "screams/" + state.user.id + "/" + Date.now() + ".webm";
+  sb.storage.from("post-media").upload(path, blob, { contentType: "audio/webm" }).then(function(res){
+    if(res.error){ screamStatus("Scream failed: " + res.error.message); say("Scream upload failed."); return; }
+    var url = sb.storage.from("post-media").getPublicUrl(path).data.publicUrl;
+    sb.from("screams").insert({ user_id: state.user.id, audio_url: url }).then(function(ir){
+      if(ir.error){ screamStatus("Scream failed: " + ir.error.message); say("Couldn't post your scream."); return; }
+      screamStatus("Your scream echoes in the void. 🤘");
+      say("Your scream is on the wall.");
+      loadScreams();
+    });
+  });
+}
+function loadScreams(){
+  var box = $("screamList");
+  if(!box) return;
+  sb.from("screams").select("id,user_id,audio_url,created_at").gt("expires_at", new Date().toISOString()).order("created_at", { ascending:false }).limit(50).then(function(res){
+    if(res.error){ box.innerHTML = '<div class="empty">Couldn\'t load the wall.</div>'; return; }
+    var rows = res.data || [];
+    /* best-effort: sweep away any of my own expired screams */
+    sb.from("screams").delete().eq("user_id", state.user.id).lt("expires_at", new Date().toISOString()).then(function(){});
+    if(!rows.length){ box.innerHTML = '<div class="empty">The void is silent. Be the first to scream. 🤘</div>'; return; }
+    var blocked = (state.myBlocks || []).concat(state.blockedByMe || []);
+    rows = rows.filter(function(r){ return blocked.indexOf(r.user_id) === -1; });
+    loadProfiles(rows.map(function(r){ return r.user_id; })).then(function(){
+      box.innerHTML = "";
+      rows.forEach(function(r, i){
+        var name = state.profiles[r.user_id] || "metalhead";
+        var d = document.createElement("div");
+        d.className = "card";
+        d.innerHTML = '<div class="who">🗣 ' + esc(name) + ' <span class="when">' + esc(ago(r.created_at)) + '</span></div>' +
+          '<div class="row" style="margin-top:8px">' +
+          '<button class="btn small secondary" aria-label="Play scream from ' + esc(name) + '">▶ Play</button>' +
+          (r.user_id === state.user.id ? '<button class="btn small secondary" aria-label="Delete your scream">🗑 Delete</button>' : '') +
+          '</div>';
+        var btns = d.querySelectorAll("button");
+        btns[0].addEventListener("click", function(){ playOneScream(r, name); });
+        if(btns[1]) btns[1].addEventListener("click", function(){
+          sb.from("screams").delete().eq("id", r.id).then(function(dr){
+            if(dr.error){ say("Couldn't delete that scream."); return; }
+            say("Scream deleted."); loadScreams();
+          });
+        });
+        box.appendChild(d);
+      });
+      screamPlay.queue = rows;
+    });
+  });
+}
+function playOneScream(r, name){
+  stopScreamWall();
+  var a = new Audio(r.audio_url);
+  screamPlay.audio = a; screamPlay.playing = true;
+  $("screamStopBtn").hidden = false;
+  say("Scream from " + name + ".");
+  a.onended = function(){ stopScreamWall(); };
+  a.onerror = function(){ say("Couldn't play that scream."); stopScreamWall(); };
+  try{ a.play(); }catch(e){ say("Couldn't play that scream."); stopScreamWall(); }
+}
+$("screamPlayBtn").addEventListener("click", function(){
+  if(!screamPlay.queue.length){ say("The wall is empty. Scream first!"); return; }
+  screamPlay.idx = 0; screamPlay.playing = true;
+  $("screamStopBtn").hidden = false;
+  playScreamAt(screamPlay.idx);
+  say("Playing the wall, newest first. " + screamPlay.queue.length + " screams.");
+});
+function playScreamAt(i){
+  var r = screamPlay.queue[i];
+  if(!r || !screamPlay.playing){ stopScreamWall(); return; }
+  var name = state.profiles[r.user_id] || "metalhead";
+  var a = new Audio(r.audio_url);
+  screamPlay.audio = a;
+  say("Scream " + (i + 1) + " of " + screamPlay.queue.length + ", from " + name + ".");
+  a.onended = function(){ if(screamPlay.playing){ screamPlay.idx++; playScreamAt(screamPlay.idx); } };
+  a.onerror = function(){ if(screamPlay.playing){ screamPlay.idx++; playScreamAt(screamPlay.idx); } };
+  try{ a.play(); }catch(e){ screamPlay.idx++; playScreamAt(screamPlay.idx); }
+}
+function stopScreamWall(){
+  screamPlay.playing = false;
+  try{ if(screamPlay.audio){ screamPlay.audio.pause(); } }catch(e){}
+  screamPlay.audio = null;
+  var b = $("screamStopBtn"); if(b) b.hidden = true;
+}
+$("screamStopBtn").addEventListener("click", function(){ stopScreamWall(); say("Wall stopped."); });
+/* ---------- welcome tour buttons (v1.65) ---------- */
+$("tourFeedBtn").addEventListener("click", function(){ selectTab("feedView"); loadFeed(); });
+$("tourGroupsBtn").addEventListener("click", function(){ selectTab("groupsView"); loadGroups(); });
+$("tourClubBtn").addEventListener("click", function(){ selectTab("clubView"); loadClub(); });
+$("tourScreamBtn").addEventListener("click", function(){
+  selectTab("feedView"); loadFeed();
+  setTimeout(function(){
+    var w = $("screamWall");
+    if(w){ w.scrollIntoView(); say("This is the Scream Wall. Tap the big button and let it out."); }
+  }, 600);
+});
+$("tourDoneBtn").addEventListener("click", function(){ selectTab("feedView"); loadFeed(); });
 /* ---------- Metalhead Security: lockdown + newbie link limits + login alerts (v1.32) ---------- */
 state.lockdown = false;
 state.lockdownTimer = null;
@@ -2020,7 +2256,7 @@ var postSendTimes = [];
 function postFloodOk(){
   var now = Date.now();
   postSendTimes = postSendTimes.filter(function(t){ return now - t < 600000; });
-  if(postSendTimes.length >= 5){ showError("postError", "You're posting too fast. Wait a few minutes."); say("You're posting too fast. Wait a few minutes."); return false; }
+  if(postSendTimes.length >= 5){ showError("postError", "You're posting too fast. Wait a few minutes."); return false; }
   return true;
 }
 $("sendPostBtn").addEventListener("click", function(){
@@ -2230,10 +2466,12 @@ function renderStoryItem(){
   if(!s){ v.innerHTML = '<div class="empty">No stories.</div>'; return; }
   var name = state.profiles[s.user_id] || "metalhead";
   var total = state.storyQueue.length, idx = state.storyIdx + 1;
-  var h = '<div class="storyprogress" role="status">Story ' + idx + ' of ' + total + ' from ' + esc(name) + ', ' + esc(ago(s.created_at)) + '</div>';
+  /* v1.65: single announcement (role=status div was doubling with say()). */
+  var h = '<div class="storyprogress">Story ' + idx + ' of ' + total + ' from ' + esc(name) + ', ' + esc(ago(s.created_at)) + '</div>';
   if(s.content) h += '<p class="storytext">' + esc(s.content) + '</p>';
   if(s.image_url) h += '<button class="thumb-btn" data-fullimg="' + esc(s.image_url) + '" aria-label="Photo story by ' + esc(name) + ', open full size"><img loading="lazy" decoding="async" src="' + esc(s.image_url) + '" alt="' + (s.content ? 'Photo attached to story by ' + esc(name) : 'Photo story by ' + esc(name)) + '"></button>';
   h += '<div class="row" style="margin-top:12px">' +
+    '<button class="btn small secondary" id="storyPauseBtn" aria-pressed="false" aria-label="Pause story auto-advance">⏸ Pause</button>' +
     (state.storyIdx > 0 ? '<button class="btn small secondary" id="storyPrevBtn" aria-label="Previous story">← Previous</button>' : '') +
     (state.storyIdx < total - 1 ? '<button class="btn small secondary" id="storyNextBtn" aria-label="Next story">Next →</button>'
       : '<button class="btn small secondary" id="storyDoneBtn">Done</button>') +
@@ -2242,10 +2480,21 @@ function renderStoryItem(){
   v.innerHTML = h;
   bindReportButtons(v);
   say("Story " + idx + " of " + total + " from " + name + (s.content ? ": " + s.content : (s.image_url ? ", photo story" : "")));
+  /* v1.65: pause button stops the 6-second auto-advance so it never cuts off a listener mid-story. */
+  $("storyPauseBtn").addEventListener("click", function(){
+    var paused = this.getAttribute("aria-pressed") === "true";
+    if(paused){ this.setAttribute("aria-pressed", "false"); this.textContent = "⏸ Pause"; this.setAttribute("aria-label", "Pause story auto-advance"); storyArmTimer(total); say("Stories resumed."); }
+    else { this.setAttribute("aria-pressed", "true"); this.textContent = "▶ Resume"; this.setAttribute("aria-label", "Resume story auto-advance"); storyStopTimer(); say("Story paused. Take your time."); }
+  });
   if(state.storyIdx > 0) $("storyPrevBtn").addEventListener("click", function(){ state.storyIdx--; renderStoryItem(); });
   if(state.storyIdx < total - 1) $("storyNextBtn").addEventListener("click", function(){ state.storyIdx++; renderStoryItem(); });
   else $("storyDoneBtn").addEventListener("click", closeStory);
   if(s.user_id === state.user.id) $("storyDeleteBtn").addEventListener("click", function(){ deleteStory(s.id); });
+  storyArmTimer(total);
+}
+/* v1.65: extracted so the pause button can re-arm the auto-advance. */
+function storyArmTimer(total){
+  storyStopTimer();
   state.storyTimer = setTimeout(function(){
     if(!$("storyView").hidden){
       if(state.storyIdx < total - 1){ state.storyIdx++; renderStoryItem(); }
@@ -2470,7 +2719,11 @@ function blockMember(userId, username){
   sb.from("blocks").insert({ blocker_id: state.user.id, blocked_id: userId }).then(function(res){
     if(res.error){ say("Couldn't block that member."); return; }
     state.myBlocks.push(userId);
-    sb.from("friendships").delete().or("and(requester_id.eq." + state.user.id + ",addressee_id.eq." + userId + "),and(requester_id.eq." + userId + ",addressee_id.eq." + state.user.id + ")");
+    /* v1.65: this delete used to float with no error handling — an RLS
+       failure rejected unhandled while the user was told "blocked". */
+    sb.from("friendships").delete().or("and(requester_id.eq." + state.user.id + ",addressee_id.eq." + userId + "),and(requester_id.eq." + userId + ",addressee_id.eq." + state.user.id + ")").then(function(fres){
+      if(fres.error) say("Note: the friendship row couldn't be removed, but they are blocked.");
+    });
     state.friends = state.friends.filter(function(id){ return id !== userId; });
     delete state.friendshipMap[userId];
     say(username + " blocked.");
@@ -2566,7 +2819,7 @@ $("newInviteBtn").addEventListener("click", function(){
 var APP_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Metalhead-Social-App/releases/latest/download/app-release.apk";
 var STORE_DOWNLOAD_URL = "https://github.com/justinyocum4-code/Lynxos-app-store/releases/latest/download/app-release.apk";
 /* ----- in-app updater: BUMP APP_VERSION_CODE every release or the banner never fires ----- */
-var APP_VERSION_CODE = 68;
+var APP_VERSION_CODE = 69;
 var updateApkUrl = null;
 function checkForAppUpdate(){
   var banner = document.getElementById("updateBanner"); if(!banner) return;
@@ -2903,7 +3156,9 @@ function tmCacheSet(evs){
 function loadTmShows(force){
   var box = $("tmShowList");
   var cached = force ? null : tmCacheGet();
-  if(cached){ renderTmShows(cached); return; }
+  /* v1.65: the cache path used to render cards but never populated
+     state.tmShows, so every "Show details" button was a silent no-op. */
+  if(cached){ state.tmShows = {}; cached.forEach(function(e){ state.tmShows[e.id] = e; }); renderTmShows(cached); return; }
   if(box) box.innerHTML = '<div class="empty">Loading upcoming shows...</div>';
   var today = new Date().toISOString().slice(0, 10);
   var url = "https://app.ticketmaster.com/discovery/v2/events.json?apikey=" + TM_KEY +
@@ -3526,6 +3781,11 @@ function openCallIce(id, pc){
   };
   return chan;
 }
+/* v1.65: stop every mic/camera track when a call fails to start — without
+   this the mic stayed live after a failed call. */
+function stopCallStream(stream){
+  try{ (stream.getTracks() || []).forEach(function(t){ try{ t.stop(); }catch(e){} }); }catch(e){}
+}
 function startCall(isVideo){
   if(!state.chatPartner || state.call){ if(state.call) say("You're already on a call."); return; }
   if(isBlockedEither(state.chatPartner.id)){ say("You can't call this member."); return; }
@@ -3537,7 +3797,7 @@ function startCall(isVideo){
     stream.getTracks().forEach(function(t){ pc.addTrack(t, stream); });
     pc.createOffer().then(function(offer){ return pc.setLocalDescription(offer); }).then(function(){
       sb.from("calls").insert({ caller_id: me, callee_id: partner, offer: pc.localDescription.toJSON(), is_video: !!isVideo, status: "ringing" }).then(function(res){
-        if(res.error || !res.data || !res.data[0]){ say("Couldn't start the call: " + (res.error ? res.error.message : "unknown error.")); try{ pc.close(); }catch(e){} return; }
+        if(res.error || !res.data || !res.data[0]){ say("Couldn't start the call: " + (res.error ? res.error.message : "unknown error.")); try{ pc.close(); }catch(e){} stopCallStream(stream); return; }
         var id = res.data[0].id;
         var iceChan = openCallIce(id, pc);
         pc.ontrack = function(e){
@@ -3568,7 +3828,7 @@ function startCall(isVideo){
         say("Calling " + name + ".");
         notifyUser(partner, "call", me, null, (state.profiles[me] || "Someone") + " is calling you (" + (isVideo ? "video" : "voice") + ")");
       });
-    }).catch(function(){ say("Couldn't start the call."); try{ pc.close(); }catch(e){} });
+    }).catch(function(){ say("Couldn't start the call."); try{ pc.close(); }catch(e){} stopCallStream(stream); });
   }).catch(function(){ say("Couldn't access the microphone" + (isVideo ? " or camera" : "") + "."); });
 }
 function incomingCall(c){
@@ -3613,7 +3873,7 @@ function acceptCall(c){
       showCallView((c.is_video ? "Video" : "Voice") + " call with " + name, "Connected with " + name + ".");
       if(c.is_video){ $("localVideo").srcObject = stream; $("localVideo").hidden = false; }
       say("Connected.");
-    }).catch(function(){ say("Couldn't connect the call."); try{ pc.close(); }catch(e){} });
+    }).catch(function(){ say("Couldn't connect the call."); try{ pc.close(); }catch(e){} stopCallStream(stream); });
   }).catch(function(){
     say("Couldn't access the microphone" + (c.is_video ? " or camera" : "") + ".");
     sb.from("calls").update({ status: "declined" }).eq("id", c.id).then(function(){});
@@ -3634,7 +3894,6 @@ function endCall(msg){
   try{ $("remoteVideo").srcObject = null; $("remoteVideo").hidden = true; }catch(e){}
   try{ $("localVideo").srcObject = null; $("localVideo").hidden = true; }catch(e){}
   var mb = $("callMuteBtn"); if(mb){ mb.setAttribute("aria-pressed", "false"); mb.textContent = "🔇 Mute"; }
-  var sp = $("callSpeakerBtn"); if(sp){ sp.setAttribute("aria-pressed", "true"); }
   if(state.chatPartner) show("chatView");
   else if(state.user) selectTab("chatsView");
   say(msg || "Call ended.");
@@ -3645,7 +3904,8 @@ $("callDeclineBtn").addEventListener("click", function(){
   var c = state.incomingCall;
   state.incomingCall = null;
   if(c) sb.from("calls").update({ status: "declined" }).eq("id", c.id).then(function(){});
-  if(state.chatPartner) show("chatView");
+  /* v1.65: always leave the incoming-call screen, even with no chat open. */
+  if(state.chatPartner) show("chatView"); else selectTab("feedView");
   say("Call declined.");
 });
 $("callAcceptBtn").addEventListener("click", function(){
@@ -3663,11 +3923,6 @@ $("callMuteBtn").addEventListener("click", function(){
   this.setAttribute("aria-pressed", on ? "false" : "true");
   this.textContent = on ? "🔇 Mute" : "🔈 Unmuted";
   say(on ? "Microphone on." : "Muted.");
-});
-$("callSpeakerBtn").addEventListener("click", function(){
-  var on = this.getAttribute("aria-pressed") !== "true";
-  this.setAttribute("aria-pressed", on ? "true" : "false");
-  say(on ? "Speaker on." : "Speaker off.");
 });
 $("callHangupBtn").addEventListener("click", function(){
   var cl = state.call;
@@ -4267,6 +4522,35 @@ function loadSocialGraph(){
     });
   });
 }
+/* v1.65: blocked-members list with unblock — previously there was no way
+   back after blocking someone. */
+function loadBlocked(){
+  var box = $("blockedList");
+  if(!box) return;
+  var ids = state.myBlocks || [];
+  if(!ids.length){ box.innerHTML = '<div class="empty">Nobody blocked.</div>'; return; }
+  box.innerHTML = '<div class="empty">Loading...</div>';
+  loadProfiles(ids).then(function(){
+    box.innerHTML = "";
+    ids.forEach(function(id){
+      var name = state.profiles[id] || "metalhead";
+      var d = document.createElement("div");
+      d.className = "card";
+      d.innerHTML = '<div class="who">' + esc(name) + '</div>' +
+        '<div class="row" style="margin-top:8px"><button class="btn small secondary" aria-label="Unblock ' + esc(name) + '">Unblock</button></div>';
+      d.querySelector("button").addEventListener("click", function(){ unblockMember(id, name); });
+      box.appendChild(d);
+    });
+  });
+}
+function unblockMember(userId, username){
+  sb.from("blocks").delete().eq("blocker_id", state.user.id).eq("blocked_id", userId).then(function(res){
+    if(res.error){ say("Couldn't unblock that member."); return; }
+    state.myBlocks = (state.myBlocks || []).filter(function(id){ return id !== userId; });
+    say(username + " unblocked.");
+    loadBlocked();
+  });
+}
 function loadFriends(){
   var rq = $("friendRequests"), fl = $("friendList");
   if(!rq || !fl) return;
@@ -4541,6 +4825,7 @@ $("tabProfile").addEventListener("click", function(){
   selectTab("profileView");
   sb.from("profiles").select("username,favorite_bands,about,hometown,avatar_url,now_spinning,lastfm_user,mood").eq("id", state.user.id).single().then(function(res){
     if(res.data){
+      $("editUsername").value = res.data.username || "";
       $("editBands").value = res.data.favorite_bands || "";
       $("editAbout").value = res.data.about || "";
       $("editHometown").value = res.data.hometown || "";
@@ -4555,6 +4840,7 @@ $("tabProfile").addEventListener("click", function(){
     }
   });
   loadFriends();
+  loadBlocked();
   loadInvites();
   loadBadgesInto($("myBadges"), state.user.id);
   updateStreakDisplay();
@@ -5324,7 +5610,10 @@ function openSongChain(id){
 function hypeCountFor(pid){ return state.hypeCount[pid] || 0; }
 function toggleHype(postId, btn){
   if(state.myHype[postId]){
-    sb.from("post_hype").delete().eq("post_id", postId).eq("user_id", state.user.id).then(function(){
+    sb.from("post_hype").delete().eq("post_id", postId).eq("user_id", state.user.id).then(function(res){
+      /* v1.65: was optimistic with no error check — a failed delete still
+         flipped the UI. */
+      if(res.error){ say("Couldn't remove that hype."); return; }
       delete state.myHype[postId];
       state.hypeCount[postId] = Math.max(0, hypeCountFor(postId) - 1);
       paintHypeBtn(btn, postId); say("Hype removed.");
@@ -6103,7 +6392,9 @@ function ensureDiscussPost(tag, text){
 }
 function toggleSave(postId, btn){
   if(state.savedIds[postId]){
-    sb.from("saved_posts").delete().eq("user_id", state.user.id).eq("post_id", postId).then(function(){
+    sb.from("saved_posts").delete().eq("user_id", state.user.id).eq("post_id", postId).then(function(res){
+      /* v1.65: was optimistic with no error check. */
+      if(res.error){ say("Couldn't unsave that."); return; }
       state.savedIds[postId] = false;
       if(btn){ btn.textContent = "🔖 Save"; btn.setAttribute("aria-label", "Save this post"); }
       say("Unsaved.");
@@ -6559,14 +6850,35 @@ function downscalePhoto(file){
     img.src = url;
   });
 }
+var _booting = false;
 function boot(){
+  /* v1.65: guard against double-boot — supabase-js fires INITIAL_SESSION on
+     subscribe AND the file calls boot() directly, which used to double up
+     realtime channels, announcements, and seed writes. This only blocks a
+     boot while one is already in flight. */
+  if(_booting) return;
+  _booting = true;
   sb.auth.getSession().then(function(res){
     var session = res.data.session;
-    if(!session || !session.user){ show("authView"); return; }
+    if(!session || !session.user){ _booting = false; show("authView"); say("Welcome to the Metalheads clubhouse. Sign in or create an account to join."); return; }
     state.user = session.user;
     syncNativeCreds(session);
     sb.from("profiles").select("id,username,is_moderator,avatar_url,created_at").eq("id", state.user.id).single().then(function(pr){
-      if(pr.error || !pr.data){ if(googleFlowPending || facebookFlowPending){ return; } show("setupView"); return; }
+      /* v1.65: a network/RLS error for an EXISTING user no longer dumps them
+         silently into profile setup — show the error with a retry. */
+      if(pr.error || !pr.data){
+        if(googleFlowPending || facebookFlowPending){ _booting = false; return; }
+        if(pr.error && pr.error.code !== "PGRST116"){
+          _booting = false;
+          show("authView");
+          say("We couldn't load your profile: " + pr.error.message + ". Check your connection and try signing in again.");
+          return;
+        }
+        _booting = false;
+        show("setupView");
+        say("Let's set up your metal profile. Pick a username to join the pit.");
+        return;
+      }
       state.profile = pr.data;
       state.isModerator = !!pr.data.is_moderator;
       state.profiles[state.user.id] = pr.data.username;
@@ -6588,14 +6900,33 @@ function boot(){
         awardBadges();
         ensureWeeklySeeds();
         seedMetalHistory();
-        say("Welcome back, " + pr.data.username + ".");
+        /* v1.65: first-run welcome tour for brand-new members. */
+        var isNewMember = false;
+        try{ isNewMember = localStorage.getItem("mhNewMember") === "1"; localStorage.removeItem("mhNewMember"); }catch(e){}
+        if(isNewMember){
+          show("welcomeView");
+          say("Welcome to the Metalheads clubhouse, " + pr.data.username + "! Here's the 60-second tour. Pick anywhere to start.");
+        } else {
+          say("Welcome back, " + pr.data.username + ".");
+        }
         try {
           if(!localStorage.getItem("mhBatteryPrompt") && typeof LynxosBattery !== "undefined"){
             localStorage.setItem("mhBatteryPrompt", "1");
             requestBatteryExemption();
           }
         } catch(e){}
+        _booting = false;
+      }).catch(function(err){
+        /* v1.65: if the post-login chain fails, say so instead of a blank screen. */
+        _booting = false;
+        show("authView");
+        say("Something went wrong loading your account. Please sign in again.");
       });
+    }).catch(function(){
+      /* v1.65: session fetch itself failed — say so, allow retry. */
+      _booting = false;
+      show("authView");
+      say("We couldn't reach the clubhouse. Check your connection and try again.");
     });
   });
 }
@@ -6753,30 +7084,27 @@ function aiVoiceFor(){
 /* Speak through the app's own voice engine when present (reliable in the
    APK). When the bridge supports it, the legend's pitch/rate rides along;
    if that call ever fails, plain speech is used as a fallback. */
-/* DIAGNOSTIC (v1.57): the Read button speaks ONE test line, then reports the
-   native engine state and the utterance event. v1.57 native changes: volatile
-   event field (v1.56 could report "none" even when the engine fired), audio on
-   the media stream, explicit Google TTS engine, unique utterance ids. */
+/* AI Metal Legends voice replies (v1.65): each legend gets a distinct character
+   (pitch/speed) through the app's own voice engine when present (reliable in
+   the APK), via the bridge's speakVoice(text, pitch, rate). On the web, or if
+   the bridge call fails, plain speechSynthesis is the fallback. These are NOT
+   the real musicians' voices — cloning a real person's voice would be
+   impersonation. */
 function aiNativeSpeak(text, voice){
   try{
-    announce("Voice test starting. Listen for the app voice.");
     if(window.LynxosTts && typeof LynxosTts.speak === "function"){
-      var r, speaking = "unknown", engine = "unknown";
-      try{ r = LynxosTts.speak("Hello. This is a voice test from Metalhead Social."); }
-      catch(e){ r = "threw"; }
-      try{ if(typeof LynxosTts.ttsSpeaking === "function") speaking = LynxosTts.ttsSpeaking() ? "yes" : "no"; }catch(e2){}
-      try{ if(typeof LynxosTts.ttsEngine === "function") engine = String(LynxosTts.ttsEngine()); }catch(e3){}
-      announce("Speak returned " + typeof r + " " + r + ". Engine speaking: " + speaking + ". Engine: " + engine + ". Waiting four seconds.");
-      setTimeout(function(){
-        var ev = "unknown";
-        try{ ev = LynxosTts.ttsUtterance(); }catch(e4){ ev = "utterance check threw"; }
-        announce("Utterance event: " + ev + ".");
-      }, 4000);
-    }else{
-      announce("Voice bridge missing.");
+      var v = voice || { pitch: 1, rate: 1 };
+      var p = parseFloat(v.pitch) || 1, r = parseFloat(v.rate) || 1;
+      var res = -1;
+      try{
+        if(typeof LynxosTts.speakVoice === "function") res = LynxosTts.speakVoice(String(text), p, r);
+        else res = LynxosTts.speak(String(text));
+      }catch(e){ res = -1; }
+      /* TextToSpeech.SUCCESS is 0; the bridge returns -1/-2 when it could not speak. */
+      return res === 0;
     }
-  }catch(e){ announce("Voice check failed."); }
-  return true;
+  }catch(e){}
+  return false;
 }
 function aiSpeakReply(text){
   if(!text) return;
